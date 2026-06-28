@@ -62,12 +62,38 @@ export const loadUsersFromFirebase = async (): Promise<User[]> => {
   }
 };
 
-export const subscribeToSites = (callback: (sites: ClientSite[]) => void): Unsubscribe => {
+export const subscribeToSites = (
+  callback: (sites: ClientSite[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe => {
   const q = query(collection(db, 'sites'));
-  return onSnapshot(q, (snapshot) => {
-    const sites = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ClientSite));
-    callback(sites);
-  });
+  return onSnapshot(q,
+    (snapshot) => {
+      const sites = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ClientSite));
+      callback(sites);
+    },
+    (error) => {
+      console.warn('Firebase subscription error:', error);
+      if (onError) onError(error);
+    }
+  );
+};
+
+export const subscribeToUsers = (
+  callback: (users: User[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe => {
+  const q = query(collection(db, 'users'));
+  return onSnapshot(q,
+    (snapshot) => {
+      const users = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as User));
+      callback(users);
+    },
+    (error) => {
+      console.warn('Firebase users subscription error:', error);
+      if (onError) onError(error);
+    }
+  );
 };
 
 export { db };

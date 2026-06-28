@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, ClientSite, SiteTemplate, DailyAnalytics, Page, SiteVisit, Product, DiscountCode, Order, CartItem } from './types';
 import { v4 as uuidv4 } from 'uuid';
-import { loadSitesFromFirebase, saveSiteToFirebase, deleteSiteFromFirebase, saveUserToFirebase, loadUsersFromFirebase } from './utils/firebase';
+import { loadSitesFromFirebase, saveSiteToFirebase, deleteSiteFromFirebase, saveUserToFirebase, loadUsersFromFirebase, subscribeToSites } from './utils/firebase';
 
 interface AppState {
   currentPage: Page;
@@ -248,24 +248,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // تحميل البيانات من Firebase عند تشغيل التطبيق
+  // بث مباشر من Firebase + تحميل أولي
   useEffect(() => {
-    const initFromFirebase = async () => {
-      const [firebaseSites, firebaseUsers] = await Promise.all([
-        loadSitesFromFirebase(),
-        loadUsersFromFirebase(),
-      ]);
-      if (firebaseSites.length > 0) {
-        setSites(firebaseSites);
-        localStorage.setItem('naqra_sites', JSON.stringify(firebaseSites));
-      }
+    setIsLoading(true);
+
+    // تحميل المستخدمين (مرة واحدة)
+    loadUsersFromFirebase().then(firebaseUsers => {
       if (firebaseUsers.length > 0) {
         setUsers(firebaseUsers);
         localStorage.setItem('naqra_users', JSON.stringify(firebaseUsers));
       }
-      setIsLoading(false);
+    });
+
+    // اشتراك مباشر للمواقع — يتلقى التحديثات فوراً من أي متصفح
+    const unsubSites = subscribeToSites(
+      (firebaseSites) => {
+        if (firebaseSites.length > 0) {
+          setSites(firebaseSites);
+          localStorage.setItem('naqra_sites', JSON.stringify(firebaseSites));
+        }
+        setIsLoading(false);
+      },
+      (err) => {
+        console.warn('فشل الاتصال بـ Firebase، استخدام localStorage:', err);
+        setIsLoading(false);
+      }
+    );
+
+    return () => {
+      unsubSites();
     };
-    initFromFirebase();
   }, []);
 
   // دالة لمزامنة المواقع مع Firebase بعد كل تغيير
