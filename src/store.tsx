@@ -265,10 +265,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
       setIsLoading(false);
     };
-    // إذا كان هناك هاش للموقع، لا ننتظر Firebase (نعرض الموقع من localStorage مباشرة)
-    if (window.location.hash.startsWith('#/site/')) {
-      setIsLoading(false);
-    }
     initFromFirebase();
   }, []);
 
@@ -309,7 +305,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   useEffect(() => {
     localStorage.setItem('naqra_sites', JSON.stringify(sites));
-    syncSitesToFirebase(sites);
   }, [sites]);
 
   const registerUser = (name: string, email: string, password: string): boolean => {
@@ -351,17 +346,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCurrentPage('landing');
   };
 
+  const syncSingleSite = (updatedSite: ClientSite) => {
+    saveSiteToFirebase(updatedSite);
+  };
+
   const createSite = (siteData: Omit<ClientSite, 'id' | 'createdAt' | 'updatedAt'>): ClientSite => {
     const newSite: ClientSite = { ...siteData, id: uuidv4(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
     setSites(prev => {
       const updated = [...prev, newSite];
       return updated;
     });
+    saveSiteToFirebase(newSite);
     return newSite;
   };
 
   const updateSite = (updatedSite: ClientSite) => {
-    setSites(prev => prev.map(s => s.id === updatedSite.id ? { ...updatedSite, updatedAt: new Date().toISOString() } : s));
+    const synced = { ...updatedSite, updatedAt: new Date().toISOString() };
+    setSites(prev => prev.map(s => s.id === synced.id ? synced : s));
+    saveSiteToFirebase(synced);
   };
 
   const deleteSite = (siteId: string) => {
@@ -463,24 +465,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     syncUsersToFirebase(updatedUsers);
   };
 
+  const syncSiteById = (siteId: string, transformSite: (site: ClientSite) => ClientSite) => {
+    const updatedSites = sites.map(s => s.id === siteId ? transformSite(s) : s);
+    setSites(updatedSites);
+    const modified = updatedSites.find(s => s.id === siteId);
+    if (modified) saveSiteToFirebase(modified);
+  };
+
   const addProduct = (siteId: string, product: Product) => {
-    setSites(prev => prev.map(s => s.id === siteId ? { ...s, products: [...(s.products || []), product] } : s));
+    syncSiteById(siteId, site => ({ ...site, products: [...(site.products || []), product] }));
   };
 
   const updateProduct = (siteId: string, product: Product) => {
-    setSites(prev => prev.map(s => s.id === siteId ? { ...s, products: s.products.map(p => p.id === product.id ? product : p) } : s));
+    syncSiteById(siteId, site => ({ ...site, products: site.products.map(p => p.id === product.id ? product : p) }));
   };
 
   const deleteProduct = (siteId: string, productId: string) => {
-    setSites(prev => prev.map(s => s.id === siteId ? { ...s, products: s.products.filter(p => p.id !== productId) } : s));
+    syncSiteById(siteId, site => ({ ...site, products: site.products.filter(p => p.id !== productId) }));
   };
 
   const addDiscountCode = (siteId: string, code: DiscountCode) => {
-    setSites(prev => prev.map(s => s.id === siteId ? { ...s, discountCodes: [...(s.discountCodes || []), code] } : s));
+    syncSiteById(siteId, site => ({ ...site, discountCodes: [...(site.discountCodes || []), code] }));
   };
 
   const deleteDiscountCode = (siteId: string, codeId: string) => {
-    setSites(prev => prev.map(s => s.id === siteId ? { ...s, discountCodes: (s.discountCodes || []).filter(c => c.id !== codeId) } : s));
+    syncSiteById(siteId, site => ({ ...site, discountCodes: (site.discountCodes || []).filter(c => c.id !== codeId) }));
   };
 
   const validateDiscountCode = (siteId: string, code: string): DiscountCode | null => {
@@ -495,12 +504,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const createOrder = (siteId: string, orderData: Omit<Order, 'id' | 'createdAt'>): Order => {
     const order: Order = { ...orderData, id: uuidv4(), createdAt: new Date().toISOString() };
-    setSites(prev => prev.map(s => s.id === siteId ? { ...s, orders: [...(s.orders || []), order] } : s));
+    syncSiteById(siteId, site => ({ ...site, orders: [...(site.orders || []), order] }));
     return order;
   };
 
   const updateOrderStatus = (siteId: string, orderId: string, status: Order['status']) => {
-    setSites(prev => prev.map(s => s.id === siteId ? { ...s, orders: (s.orders || []).map(o => o.id === orderId ? { ...o, status } : o) } : s));
+    syncSiteById(siteId, site => ({ ...site, orders: (site.orders || []).map(o => o.id === orderId ? { ...o, status } : o) }));
   };
 
   const addToCart = (product: Product) => {

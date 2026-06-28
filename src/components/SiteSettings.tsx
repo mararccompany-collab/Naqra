@@ -5,7 +5,8 @@ import { ArrowRight, Save, Check, Plus, Trash2, Tag, Package, Percent } from 'lu
 import { v4 as uuidv4 } from 'uuid';
 
 const SiteSettings: React.FC = () => {
-  const { editingSite, updateSite, setCurrentPage, addProduct, updateProduct, deleteProduct, addDiscountCode, deleteDiscountCode } = useApp();
+  const { editingSite, sites, updateSite, setCurrentPage, addProduct, updateProduct, deleteProduct, addDiscountCode, deleteDiscountCode } = useApp();
+  const site = sites.find(s => s.id === editingSite?.id) || editingSite;
   const [activeTab, setActiveTab] = useState<'general' | 'products' | 'discounts' | 'orders'>('general');
   const [settings, setSettings] = useState<SiteSettingsType>({
     showHeader: true, showFooter: true, showContactForm: true, enableDarkMode: false,
@@ -28,13 +29,13 @@ const SiteSettings: React.FC = () => {
   });
 
   useEffect(() => {
-    if (editingSite?.settings) setSettings(editingSite.settings);
-  }, [editingSite]);
+    if (site?.settings) setSettings(site.settings);
+  }, [site]);
 
-  if (!editingSite) return null;
+  if (!editingSite || !site) return null;
 
   const handleSave = () => {
-    updateSite({ ...editingSite, settings });
+    updateSite({ ...site, settings });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -55,9 +56,9 @@ const SiteSettings: React.FC = () => {
     };
     
     if (editingProduct) {
-      updateProduct(editingSite.id, product);
+      updateProduct(site.id, product);
     } else {
-      addProduct(editingSite.id, product);
+      addProduct(site.id, product);
     }
     
     setProductForm({});
@@ -84,7 +85,7 @@ const SiteSettings: React.FC = () => {
       expiresAt: discountForm.expiresAt,
       active: true,
     };
-    addDiscountCode(editingSite.id, discount);
+    addDiscountCode(site.id, discount);
     setDiscountForm({ type: 'percentage', value: 10, active: true, usedCount: 0 });
     setShowDiscountForm(false);
   };
@@ -100,7 +101,7 @@ const SiteSettings: React.FC = () => {
           <div className="flex items-center gap-6">
             <span className="logo" dir="ltr">Naqra</span>
             <span className="text-gray-300">|</span>
-            <span className="text-gray-500">إعدادات: {editingSite.siteName}</span>
+            <span className="text-gray-500">إعدادات: {site.siteName}</span>
           </div>
           <div className="flex items-center gap-3">
             <button onClick={handleSave} className={`btn btn-sm ${saved ? 'bg-green-500 text-white' : 'btn-primary'}`}>
@@ -116,9 +117,9 @@ const SiteSettings: React.FC = () => {
         <div className="tabs mb-8">
           {[
             { id: 'general' as const, label: 'عام', icon: '⚙️' },
-            { id: 'products' as const, label: `المنتجات (${editingSite.products?.length || 0})`, icon: '📦' },
-            { id: 'discounts' as const, label: `أكواد الخصم (${editingSite.discountCodes?.length || 0})`, icon: '🏷️' },
-            { id: 'orders' as const, label: `الطلبات (${editingSite.orders?.length || 0})`, icon: '📋' },
+            { id: 'products' as const, label: `المنتجات (${site.products?.length || 0})`, icon: '📦' },
+            { id: 'discounts' as const, label: `أكواد الخصم (${site.discountCodes?.length || 0})`, icon: '🏷️' },
+            { id: 'orders' as const, label: `الطلبات (${site.orders?.length || 0})`, icon: '📋' },
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`tab ${activeTab === tab.id ? 'active' : ''}`}>
               {tab.icon} {tab.label}
@@ -266,9 +267,9 @@ const SiteSettings: React.FC = () => {
               </div>
             )}
 
-            {editingSite.products?.length > 0 ? (
+            {site.products?.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {editingSite.products.map(product => (
+                {site.products.map(product => (
                   <div key={product.id} className="card p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
@@ -297,7 +298,7 @@ const SiteSettings: React.FC = () => {
                       </span>
                       <div className="flex gap-2">
                         <button onClick={() => handleEditProduct(product)} className="btn btn-ghost btn-sm">تعديل</button>
-                        <button onClick={() => deleteProduct(editingSite.id, product.id)} className="btn btn-danger btn-sm"><Trash2 size={14} /></button>
+                        <button onClick={() => deleteProduct(site.id, product.id)} className="btn btn-danger btn-sm"><Trash2 size={14} /></button>
                       </div>
                     </div>
                   </div>
@@ -362,9 +363,9 @@ const SiteSettings: React.FC = () => {
               </div>
             )}
 
-            {editingSite.discountCodes?.length > 0 ? (
+            {site.discountCodes?.length > 0 ? (
               <div className="space-y-3">
-                {editingSite.discountCodes.map(code => (
+                {site.discountCodes.map(code => (
                   <div key={code.id} className="card p-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
@@ -388,7 +389,7 @@ const SiteSettings: React.FC = () => {
                         <div className="text-lg font-bold text-gray-800">{code.usedCount}</div>
                         <div className="text-xs text-gray-400">استخدام</div>
                       </div>
-                      <button onClick={() => deleteDiscountCode(editingSite.id, code.id)} className="btn btn-danger btn-sm"><Trash2 size={14} /></button>
+                      <button onClick={() => deleteDiscountCode(site.id, code.id)} className="btn btn-danger btn-sm"><Trash2 size={14} /></button>
                     </div>
                   </div>
                 ))}
@@ -407,9 +408,9 @@ const SiteSettings: React.FC = () => {
         {activeTab === 'orders' && (
           <div className="animate-fade">
             <h2 className="text-xl font-semibold text-gray-800 mb-6">الطلبات</h2>
-            {editingSite.orders?.length > 0 ? (
+            {site.orders?.length > 0 ? (
               <div className="space-y-4">
-                {editingSite.orders.map(order => (
+                {site.orders.map(order => (
                   <div key={order.id} className="card p-5">
                     <div className="flex items-start justify-between mb-4">
                       <div>

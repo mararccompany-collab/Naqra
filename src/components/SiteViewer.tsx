@@ -4,7 +4,7 @@ import { Product } from '../types';
 import { ArrowRight, Mail, Phone, MapPin, Star, ShoppingCart, Send, Menu, X, Plus, Minus, Trash2, Tag, Check } from 'lucide-react';
 
 const SiteViewer: React.FC = () => {
-  const { viewingSiteSlug, sites, setCurrentPage, setViewingSiteSlug, recordVisit, cart, addToCart, removeFromCart, updateCartQuantity, clearCart, validateDiscountCode, createOrder } = useApp();
+  const { viewingSiteSlug, sites, currentUser, setCurrentPage, setViewingSiteSlug, recordVisit, cart, addToCart, removeFromCart, updateCartQuantity, clearCart, validateDiscountCode, createOrder } = useApp();
   const [mobileMenu, setMobileMenu] = useState(false);
   const [showCart, setShowCart] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -118,10 +118,12 @@ const SiteViewer: React.FC = () => {
 
   return (
     <div style={{ background: bg, color: textColor, fontFamily: site.fontFamily + ', sans-serif', minHeight: '100vh' }}>
-      {/* Back Button */}
-      <button onClick={() => { setViewingSiteSlug(null); setCurrentPage('dashboard'); }} className="back-btn">
-        <ArrowRight size={14} /> العودة للوحة التحكم
-      </button>
+      {/* Back Button - يظهر فقط لصاحب الموقع */}
+      {currentUser && currentUser.id === site.userId && (
+        <button onClick={() => { setViewingSiteSlug(null); setCurrentPage('dashboard'); }} className="back-btn">
+          <ArrowRight size={14} /> العودة للوحة التحكم
+        </button>
+      )}
 
       {/* Success Message */}
       {orderSuccess && (
