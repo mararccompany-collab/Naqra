@@ -130,7 +130,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return null;
   });
   const [isAdmin, setIsAdmin] = useState(false);
-  const [users, setUsers] = useState<User[]>(() => { try { return JSON.parse(localStorage.getItem('naqra_users') || '[]'); } catch { return []; } });
+  const [users, setUsers] = useState<User[]>(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem('naqra_users') || '[]');
+      return raw.map((u: any) => ({ ...u, plan: u.plan || 'free', wallet: typeof u.wallet === 'number' ? u.wallet : 0 }));
+    } catch { return []; }
+  });
   const [sites, setSites] = useState<ClientSite[]>(() => { try { return JSON.parse(localStorage.getItem('naqra_sites') || '[]'); } catch { return []; } });
   const [transactions, setTransactions] = useState<Transaction[]>(() => { try { return JSON.parse(localStorage.getItem('naqra_transactions') || '[]'); } catch { return []; } });
   const [editingSite, setEditingSiteRaw] = useState<ClientSite | null>(null);
@@ -212,7 +217,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setUsers(p => [...p, u]); fbSave('users', u.id, u);
     setCurrentUser(u); setCurrentPage('dashboard'); return true;
   };
-  const loginUser = (email: string, password: string) => { const u = users.find(x => x.email === email && x.password === password); if (u) { setCurrentUser(u); setCurrentPage('dashboard'); return true; } return false; };
+  const loginUser = (email: string, password: string) => {
+    const u = users.find(x => x.email === email && x.password === password);
+    if (u) { setCurrentUser({ ...u, plan: u.plan || 'free', wallet: typeof u.wallet === 'number' ? u.wallet : 0 }); setCurrentPage('dashboard'); return true; }
+    return false;
+  };
   const loginAdmin = (pw: string) => { if (pw === '01147497465') { setIsAdmin(true); setCurrentPage('admin'); return true; } return false; };
   const logout = () => { setCurrentUser(null); setIsAdmin(false); setCurrentPage('landing'); };
 
@@ -280,13 +289,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Wallet / Plans
   const updateUserWallet = (userId: string, amount: number) => {
-    setUsers(p => p.map(u => u.id === userId ? { ...u, wallet: Math.max(0, u.wallet + amount) } : u));
-    if (currentUser?.id === userId) setCurrentUser(prev => prev ? { ...prev, wallet: Math.max(0, prev.wallet + amount) } : null);
+    setUsers(p => p.map(u => u.id === userId ? { ...u, wallet: Math.max(0, (u.wallet || 0) + amount) } : u));
+    if (currentUser?.id === userId) setCurrentUser(prev => prev ? { ...prev, wallet: Math.max(0, (prev.wallet || 0) + amount) } : null);
   };
   const setUserPlan = (userId: string, plan: Plan) => {
     setUsers(p => p.map(u => u.id === userId ? { ...u, plan } : u));
     if (currentUser?.id === userId) setCurrentUser(prev => prev ? { ...prev, plan } : null);
   };
+  // Normalize users after Firebase sync or any external update
+  useEffect(() => {
+    setUsers(prev => prev.map(u => ({ ...u, plan: u.plan || 'free', wallet: typeof u.wallet === 'number' ? u.wallet : 0 })));
+  }, []);
   const addTransaction = (userId: string, type: 'deposit' | 'subscription' | 'withdrawal', amount: number, note: string) => {
     const t: Transaction = { id: uuidv4(), userId, type, amount, note, createdAt: new Date().toISOString(), confirmed: false };
     setTransactions(p => [...p, t]);
