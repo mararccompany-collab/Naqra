@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { User, ClientSite, SiteTemplate, DailyAnalytics, Page, SiteVisit, Product, DiscountCode, Order, CartItem } from './types';
+import { User, ClientSite, SiteTemplate, DailyAnalytics, Page, SiteVisit, Product, DiscountCode, Order, CartItem, ContactMessage } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { fbSave, fbDelete, fbListen, fbTest } from './firebase';
 
@@ -38,6 +38,7 @@ interface AppState {
   validateDiscountCode: (siteId: string, code: string) => DiscountCode | null;
   createOrder: (siteId: string, o: Omit<Order, 'id' | 'createdAt'>) => Order;
   updateOrderStatus: (siteId: string, oid: string, s: Order['status']) => void;
+  submitContactMessage: (siteId: string, name: string, email: string, message: string) => void;
   addToCart: (p: Product) => void;
   removeFromCart: (pid: string) => void;
   updateCartQuantity: (pid: string, q: number) => void;
@@ -200,6 +201,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const createOrder = (sid: string, od: Omit<Order, 'id' | 'createdAt'>): Order => { const o: Order = { ...od, id: uuidv4(), createdAt: new Date().toISOString() }; modSite(sid, s => ({ ...s, orders: [...(s.orders || []), o] })); return o; };
   const updateOrderStatus = (sid: string, oid: string, st: Order['status']) => modSite(sid, s => ({ ...s, orders: (s.orders || []).map(o => o.id === oid ? { ...o, status: st } : o) }));
 
+  // Contact Form
+  const submitContactMessage = (siteId: string, name: string, email: string, message: string) => {
+    const msg: ContactMessage = { id: uuidv4(), name, email, message, createdAt: new Date().toISOString(), read: false };
+    modSite(siteId, s => ({ ...s, contactMessages: [...(s.contactMessages || []), msg] }));
+  };
+
   // Cart
   const addToCart = (p: Product) => setCart(prev => { const e = prev.find(i => i.product.id === p.id); if (e) return prev.map(i => i.product.id === p.id ? { ...i, quantity: i.quantity + 1 } : i); return [...prev, { product: p, quantity: 1 }]; });
   const removeFromCart = (pid: string) => setCart(p => p.filter(i => i.product.id !== pid));
@@ -216,7 +223,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       getSiteAnalytics, getAllAnalytics, recordVisit, deleteUser,
       addProduct, updateProduct, deleteProduct,
       addDiscountCode, deleteDiscountCode, validateDiscountCode,
-      createOrder, updateOrderStatus,
+      createOrder, updateOrderStatus, submitContactMessage,
       addToCart, removeFromCart, updateCartQuantity, clearCart,
       getSiteUrl,
     }}>

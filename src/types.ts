@@ -138,6 +138,7 @@ export interface ClientSite {
   products: Product[];
   discountCodes: DiscountCode[];
   orders: Order[];
+  contactMessages: ContactMessage[];
   categories: string[];
 }
 
@@ -153,6 +154,15 @@ export interface DailyAnalytics {
     mobile: number;
     tablet: number;
   };
+}
+
+export interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  message: string;
+  createdAt: string;
+  read: boolean;
 }
 
 export type Page = 'landing' | 'login' | 'register' | 'dashboard' | 'create-site' | 'edit-site' | 'site-settings' | 'analytics' | 'admin' | 'view-site' | 'admin-login' | 'products' | 'orders' | 'discounts';

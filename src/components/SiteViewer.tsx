@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../store';
-import { Product } from '../types';
-import { ArrowRight, Mail, Phone, MapPin, Star, ShoppingCart, Send, Menu, X, Plus, Minus, Trash2, Tag, Check } from 'lucide-react';
+import { Product, ContactMessage } from '../types';
+import { ArrowRight, Mail, Phone, MapPin, Star, ShoppingCart, Send, Menu, X, Plus, Minus, Trash2, Tag, Check, MessageCircle } from 'lucide-react';
 
 const SiteViewer: React.FC = () => {
-  const { viewingSiteSlug, sites, setCurrentPage, setViewingSiteSlug, recordVisit, cart, addToCart, removeFromCart, updateCartQuantity, clearCart, validateDiscountCode, createOrder, currentUser } = useApp();
+  const { viewingSiteSlug, sites, setCurrentPage, setViewingSiteSlug, recordVisit, cart, addToCart, removeFromCart, updateCartQuantity, clearCart, validateDiscountCode, createOrder, submitContactMessage, currentUser } = useApp();
   const [mobileMenu, setMobileMenu] = useState(false);
   const [showCart, setShowCart] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -13,6 +13,9 @@ const SiteViewer: React.FC = () => {
   const [checkoutForm, setCheckoutForm] = useState({ name: '', email: '', phone: '', address: '' });
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [toast, setToast] = useState<string | null>(null);
+  const [contactForm, setContactForm] = useState({ name: '', email: '', message: '' });
+  const [contactSent, setContactSent] = useState(false);
 
   const site = sites.find(s => s.siteSlug === viewingSiteSlug);
   
@@ -126,19 +129,45 @@ const SiteViewer: React.FC = () => {
     setTimeout(() => setOrderSuccess(false), 5000);
   };
 
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
+
   const handleAddToCart = (product: Product) => {
     if (!product.inStock) return;
     addToCart(product);
-    // Show notification
-    const notification = document.createElement('div');
-    notification.className = 'fixed bottom-24 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-full shadow-lg z-50 animate-fade';
-    notification.innerHTML = '✓ تمت الإضافة للسلة';
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 2000);
+    showToast('✓ تمت الإضافة للسلة');
+  };
+
+  const handleContactSubmit = () => {
+    if (!contactForm.name || !contactForm.message) { showToast('يرجى ملء الاسم والرسالة'); return; }
+    submitContactMessage(site.id, contactForm.name, contactForm.email, contactForm.message);
+    setContactSent(true);
+    setContactForm({ name: '', email: '', message: '' });
+    showToast('✓ تم إرسال رسالتك بنجاح');
   };
 
   return (
     <div style={{ background: bg, color: textColor, fontFamily: site.fontFamily + ', sans-serif', minHeight: '100vh' }}>
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-full shadow-lg z-[999] animate-fade">
+          {toast}
+        </div>
+      )}
+
+      {/* Floating WhatsApp Button */}
+      {site.settings?.socialLinks?.whatsapp && (
+        <a
+          href={`https://wa.me/${site.settings.socialLinks.whatsapp.replace(/[^0-9]/g, '')}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fixed bottom-6 left-6 z-[100] w-14 h-14 rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform"
+          style={{ background: '#25D366' }}
+          title="تواصل عبر واتساب"
+        >
+          <MessageCircle size={28} color="white" />
+        </a>
+      )}
+
       {/* Back Button - only for the site owner */}
       {isOwner && (
         <button onClick={() => { setViewingSiteSlug(null); setCurrentPage('dashboard'); window.location.hash = ''; }} className="back-btn">
@@ -538,12 +567,22 @@ const SiteViewer: React.FC = () => {
                     </div>
                     {site.settings?.showContactForm !== false && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        <input type="text" placeholder="الاسم" style={{ padding: '16px 20px', border: `2px solid ${borderColor}`, borderRadius: '14px', background: cardBg, color: textColor, fontSize: '16px' }} />
-                        <input type="email" placeholder="البريد الإلكتروني" dir="ltr" style={{ padding: '16px 20px', border: `2px solid ${borderColor}`, borderRadius: '14px', background: cardBg, color: textColor, fontSize: '16px' }} />
-                        <textarea placeholder="رسالتك" rows={4} style={{ padding: '16px 20px', border: `2px solid ${borderColor}`, borderRadius: '14px', background: cardBg, color: textColor, fontSize: '16px', resize: 'none' }} />
-                        <button style={{ padding: '16px', background: site.primaryColor, color: 'white', borderRadius: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '16px' }}>
-                          <Send size={18} /> إرسال الرسالة
-                        </button>
+                        {contactSent ? (
+                          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                            <div style={{ fontSize: '48px', marginBottom: '16px' }}>✅</div>
+                            <h3 style={{ fontWeight: 600, fontSize: '18px', marginBottom: '8px' }}>تم إرسال رسالتك!</h3>
+                            <p style={{ color: textMuted, fontSize: '14px' }}>سنتواصل معك في أقرب وقت</p>
+                          </div>
+                        ) : (
+                          <>
+                            <input type="text" placeholder="الاسم" value={contactForm.name} onChange={(e) => setContactForm(f => ({ ...f, name: e.target.value }))} style={{ padding: '16px 20px', border: `2px solid ${borderColor}`, borderRadius: '14px', background: cardBg, color: textColor, fontSize: '16px', outline: 'none' }} />
+                            <input type="email" placeholder="البريد الإلكتروني (اختياري)" dir="ltr" value={contactForm.email} onChange={(e) => setContactForm(f => ({ ...f, email: e.target.value }))} style={{ padding: '16px 20px', border: `2px solid ${borderColor}`, borderRadius: '14px', background: cardBg, color: textColor, fontSize: '16px', outline: 'none' }} />
+                            <textarea placeholder="رسالتك" rows={4} value={contactForm.message} onChange={(e) => setContactForm(f => ({ ...f, message: e.target.value }))} style={{ padding: '16px 20px', border: `2px solid ${borderColor}`, borderRadius: '14px', background: cardBg, color: textColor, fontSize: '16px', resize: 'none', outline: 'none' }} />
+                            <button onClick={handleContactSubmit} style={{ padding: '16px', background: site.primaryColor, color: 'white', borderRadius: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '16px' }}>
+                              <Send size={18} /> إرسال الرسالة
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>

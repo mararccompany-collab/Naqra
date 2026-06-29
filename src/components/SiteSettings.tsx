@@ -9,7 +9,7 @@ const SiteSettings: React.FC = () => {
   
   // Always use the freshest site data from the store
   const liveSite = editingSite ? sites.find(s => s.id === editingSite.id) || editingSite : null;
-  const [activeTab, setActiveTab] = useState<'general' | 'products' | 'discounts' | 'orders'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'products' | 'discounts' | 'orders' | 'messages'>('general');
   const [settings, setSettings] = useState<SiteSettingsType>({
     showHeader: true, showFooter: true, showContactForm: true, enableDarkMode: false,
     enableCart: true, enableOrders: true, currency: 'ر.س',
@@ -23,6 +23,8 @@ const SiteSettings: React.FC = () => {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState<Partial<Product>>({});
+  const [productSearch, setProductSearch] = useState('');
+  const [orderFilter, setOrderFilter] = useState<string>('all');
   
   // Discount form
   const [showDiscountForm, setShowDiscountForm] = useState(false);
@@ -124,6 +126,7 @@ const SiteSettings: React.FC = () => {
             { id: 'products' as const, label: `المنتجات (${activeSite.products?.length || 0})`, icon: '📦' },
             { id: 'discounts' as const, label: `أكواد الخصم (${activeSite.discountCodes?.length || 0})`, icon: '🏷️' },
             { id: 'orders' as const, label: `الطلبات (${activeSite.orders?.length || 0})`, icon: '📋' },
+            { id: 'messages' as const, label: `الرسائل (${(activeSite.contactMessages || []).filter(m => !m.read).length || 0})`, icon: '✉️' },
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`tab ${activeTab === tab.id ? 'active' : ''}`}>
               {tab.icon} {tab.label}
@@ -219,11 +222,20 @@ const SiteSettings: React.FC = () => {
         {activeTab === 'products' && (
           <div className="animate-fade">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-800">المنتجات</h2>
+              <h2 className="text-xl font-semibold text-gray-800">المنتجات ({activeSite.products?.length || 0})</h2>
               <button onClick={() => { setShowProductForm(true); setEditingProduct(null); setProductForm({}); }} className="btn btn-primary">
                 <Plus size={16} /> إضافة منتج
               </button>
             </div>
+            {/* Search */}
+            <input
+              type="text"
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+              className="input mb-6"
+              placeholder="🔍 بحث في المنتجات..."
+              dir="rtl"
+            />
 
             {showProductForm && (
               <div className="card p-6 mb-6 border-2 border-indigo-200">
@@ -328,9 +340,17 @@ const SiteSettings: React.FC = () => {
               </div>
             )}
 
-            {activeSite.products?.length > 0 ? (
+            {(() => {
+              const filtered = productSearch
+                ? (activeSite.products || []).filter(p =>
+                    p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+                    p.category?.toLowerCase().includes(productSearch.toLowerCase()) ||
+                    p.description?.toLowerCase().includes(productSearch.toLowerCase())
+                  )
+                : (activeSite.products || []);
+              return filtered.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {activeSite.products.map(product => (
+                {filtered.map(product => (
                   <div key={product.id} className="card p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
@@ -367,13 +387,13 @@ const SiteSettings: React.FC = () => {
                   </div>
                 ))}
               </div>
-            ) : (
+              ) : (
               <div className="empty-state card">
                 <Package size={48} className="text-gray-300 mx-auto mb-4" />
-                <h3 className="title">لا توجد منتجات</h3>
-                <p className="desc">أضف منتجات لعرضها في متجرك</p>
+                <h3 className="title">{productSearch ? 'لا توجد نتائج للبحث' : 'لا توجد منتجات'}</h3>
+                <p className="desc">{productSearch ? 'حاول بكلمات بحث مختلفة' : 'أضف منتجات لعرضها في متجرك'}</p>
               </div>
-            )}
+            )})()}
           </div>
         )}
 
@@ -514,10 +534,54 @@ const SiteSettings: React.FC = () => {
               </div>
             )}
 
+            {/* Filter Bar + Export */}
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+              <div className="flex gap-2 flex-wrap">
+                {['all', 'pending', 'confirmed', 'shipped', 'delivered', 'cancelled'].map(f => (
+                  <button key={f} onClick={() => setOrderFilter(f)}
+                    className={`btn btn-sm ${orderFilter === f ? 'btn-primary' : 'btn-ghost'}`}>
+                    {f === 'all' ? 'الكل' :
+                     f === 'pending' ? '⏳ قيد الانتظار' :
+                     f === 'confirmed' ? '✅ مؤكد' :
+                     f === 'shipped' ? '🚚 شحن' :
+                     f === 'delivered' ? '📦 تم' : '❌ ملغي'}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => {
+                const orders = activeSite.orders || [];
+                const csv = [
+                  ['رقم الطلب', 'العميل', 'الهاتف', 'البريد', 'العنوان', 'المجموع', 'الخصم', 'الإجمالي', 'الحالة', 'التاريخ'],
+                  ...orders.map(o => [
+                    o.id.slice(0,8).toUpperCase(),
+                    o.customerName,
+                    o.customerPhone,
+                    o.customerEmail,
+                    o.customerAddress,
+                    o.subtotal,
+                    o.discount,
+                    o.total,
+                    o.status,
+                    new Date(o.createdAt).toLocaleDateString('ar-EG'),
+                  ])
+                ].map(r => r.join(',')).join('\n');
+                const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = `orders_${activeSite.siteSlug}.csv`;
+                a.click(); URL.revokeObjectURL(url);
+              }} className="btn btn-secondary btn-sm" title="تصدير CSV">
+                📥 تصدير CSV
+              </button>
+            </div>
+
             <h2 className="text-xl font-semibold text-gray-800 mb-4">إدارة الطلبات</h2>
-            {activeSite.orders?.length > 0 ? (
+            {(() => {
+              const filtered = orderFilter === 'all'
+                ? (activeSite.orders || [])
+                : (activeSite.orders || []).filter(o => o.status === orderFilter);
+              return filtered.length > 0 ? (
               <div className="space-y-4">
-                {[...activeSite.orders].reverse().map(order => {
+                {[...filtered].reverse().map(order => {
                   const statusSteps = [
                     { key: 'pending', label: 'قيد الانتظار', icon: '⏳', color: '#f59e0b' },
                     { key: 'confirmed', label: 'تم التأكيد', icon: '✅', color: '#3b82f6' },
@@ -680,12 +744,57 @@ const SiteSettings: React.FC = () => {
                   );
                 })}
               </div>
-            ) : (
+              ) : (
               <div className="empty-state card">
                 <div className="text-6xl mb-4">📋</div>
-                <h3 className="title">لا توجد طلبات بعد</h3>
+                <h3 className="title">{orderFilter !== 'all' ? 'لا توجد طلبات بهذه الحالة' : 'لا توجد طلبات بعد'}</h3>
                 <p className="desc">عندما يشتري عملاؤك من متجرك ستظهر الطلبات هنا</p>
-                <p className="desc mt-2">يمكنك تتبع حالة كل طلب وإدارته كالمحترفين</p>
+              </div>
+            )})()}
+          </div>
+        )}
+
+        {/* Messages */}
+        {activeTab === 'messages' && (
+          <div className="animate-fade">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-800">
+                رسائل التواصل
+                {(activeSite.contactMessages || []).filter(m => !m.read).length > 0 && (
+                  <span className="mr-2 text-sm text-red-500">({(activeSite.contactMessages || []).filter(m => !m.read).length} غير مقروءة)</span>
+                )}
+              </h2>
+            </div>
+            {(activeSite.contactMessages || []).length > 0 ? (
+              <div className="space-y-4">
+                {[...(activeSite.contactMessages || [])].reverse().map(msg => (
+                  <div key={msg.id} className={`card p-5 ${!msg.read ? 'border-r-4 border-indigo-500 bg-indigo-50/30' : ''}`}>
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h4 className="font-semibold text-gray-800">{msg.name}</h4>
+                        {msg.email && <p className="text-sm text-gray-500" dir="ltr">{msg.email}</p>}
+                      </div>
+                      <div className="text-left text-xs text-gray-400">
+                        {new Date(msg.createdAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                    <p className="text-gray-700 leading-relaxed mb-3">{msg.message}</p>
+                    <div className="flex gap-2">
+                      {!msg.read && (
+                        <button onClick={() => {
+                          const updated = { ...activeSite, contactMessages: (activeSite.contactMessages || []).map(m => m.id === msg.id ? { ...m, read: true } : m) };
+                          updateSite(updated);
+                        }} className="btn btn-secondary btn-sm text-xs">✓ تحديد كمقروء</button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state card">
+                <div className="text-6xl mb-4">✉️</div>
+                <h3 className="title">لا توجد رسائل</h3>
+                <p className="desc">عندما يرسل زوار موقعك رسائل من نموذج التواصل ستظهر هنا</p>
               </div>
             )}
           </div>
