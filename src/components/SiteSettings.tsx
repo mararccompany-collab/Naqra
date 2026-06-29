@@ -5,8 +5,10 @@ import { ArrowRight, Save, Check, Plus, Trash2, Tag, Package, Percent } from 'lu
 import { v4 as uuidv4 } from 'uuid';
 
 const SiteSettings: React.FC = () => {
-  const { editingSite, sites, updateSite, setCurrentPage, addProduct, updateProduct, deleteProduct, addDiscountCode, deleteDiscountCode } = useApp();
-  const site = sites.find(s => s.id === editingSite?.id) || editingSite;
+  const { editingSite, updateSite, setCurrentPage, addProduct, updateProduct, deleteProduct, addDiscountCode, deleteDiscountCode, sites, updateOrderStatus } = useApp();
+  
+  // Always use the freshest site data from the store
+  const liveSite = editingSite ? sites.find(s => s.id === editingSite.id) || editingSite : null;
   const [activeTab, setActiveTab] = useState<'general' | 'products' | 'discounts' | 'orders'>('general');
   const [settings, setSettings] = useState<SiteSettingsType>({
     showHeader: true, showFooter: true, showContactForm: true, enableDarkMode: false,
@@ -29,13 +31,15 @@ const SiteSettings: React.FC = () => {
   });
 
   useEffect(() => {
-    if (site?.settings) setSettings(site.settings);
-  }, [site]);
+    if (editingSite?.settings) setSettings(editingSite.settings);
+  }, [editingSite]);
 
-  if (!editingSite || !site) return null;
+  // Use liveSite for reading (always fresh), editingSite for writing
+  const activeSite = liveSite || editingSite;
+  if (!activeSite) return null;
 
   const handleSave = () => {
-    updateSite({ ...site, settings });
+    updateSite({ ...activeSite, settings });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -56,9 +60,9 @@ const SiteSettings: React.FC = () => {
     };
     
     if (editingProduct) {
-      updateProduct(site.id, product);
+      updateProduct(activeSite.id, product);
     } else {
-      addProduct(site.id, product);
+      addProduct(activeSite.id, product);
     }
     
     setProductForm({});
@@ -85,7 +89,7 @@ const SiteSettings: React.FC = () => {
       expiresAt: discountForm.expiresAt,
       active: true,
     };
-    addDiscountCode(site.id, discount);
+    addDiscountCode(activeSite.id, discount);
     setDiscountForm({ type: 'percentage', value: 10, active: true, usedCount: 0 });
     setShowDiscountForm(false);
   };
@@ -101,7 +105,7 @@ const SiteSettings: React.FC = () => {
           <div className="flex items-center gap-6">
             <span className="logo" dir="ltr">Naqra</span>
             <span className="text-gray-300">|</span>
-            <span className="text-gray-500">إعدادات: {site.siteName}</span>
+            <span className="text-gray-500">إعدادات: {activeSite.siteName}</span>
           </div>
           <div className="flex items-center gap-3">
             <button onClick={handleSave} className={`btn btn-sm ${saved ? 'bg-green-500 text-white' : 'btn-primary'}`}>
@@ -117,9 +121,9 @@ const SiteSettings: React.FC = () => {
         <div className="tabs mb-8">
           {[
             { id: 'general' as const, label: 'عام', icon: '⚙️' },
-            { id: 'products' as const, label: `المنتجات (${site.products?.length || 0})`, icon: '📦' },
-            { id: 'discounts' as const, label: `أكواد الخصم (${site.discountCodes?.length || 0})`, icon: '🏷️' },
-            { id: 'orders' as const, label: `الطلبات (${site.orders?.length || 0})`, icon: '📋' },
+            { id: 'products' as const, label: `المنتجات (${activeSite.products?.length || 0})`, icon: '📦' },
+            { id: 'discounts' as const, label: `أكواد الخصم (${activeSite.discountCodes?.length || 0})`, icon: '🏷️' },
+            { id: 'orders' as const, label: `الطلبات (${activeSite.orders?.length || 0})`, icon: '📋' },
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`tab ${activeTab === tab.id ? 'active' : ''}`}>
               {tab.icon} {tab.label}
@@ -245,9 +249,66 @@ const SiteSettings: React.FC = () => {
                     <label className="form-label">الوصف</label>
                     <textarea value={productForm.description || ''} onChange={(e) => setProductForm(p => ({ ...p, description: e.target.value }))} className="input" style={{ minHeight: '80px', resize: 'none' }} placeholder="وصف المنتج..." />
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">صورة المنتج (إيموجي أو رابط)</label>
-                    <input type="text" value={productForm.image || ''} onChange={(e) => setProductForm(p => ({ ...p, image: e.target.value }))} className="input" placeholder="📦 أو https://..." />
+                  <div className="form-group col-span-2">
+                    <label className="form-label">صورة المنتج</label>
+                    {/* Image preview */}
+                    {productForm.image && (
+                      <div className="mb-3 relative inline-block">
+                        {productForm.image.startsWith('data:') || productForm.image.startsWith('http') ? (
+                          <img src={productForm.image} alt="معاينة" className="w-24 h-24 object-cover rounded-xl border-2 border-gray-200" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        ) : (
+                          <div className="w-24 h-24 bg-gray-100 rounded-xl flex items-center justify-center text-4xl border-2 border-gray-200">{productForm.image}</div>
+                        )}
+                        <button type="button" onClick={() => setProductForm(p => ({ ...p, image: '' }))} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600">✕</button>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      {/* Upload from device */}
+                      <label className="btn btn-secondary btn-sm cursor-pointer flex-1 text-center">
+                        📁 رفع من الجهاز
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            if (file.size > 500000) {
+                              // Compress large images
+                              const canvas = document.createElement('canvas');
+                              const ctx = canvas.getContext('2d');
+                              const img = new Image();
+                              img.onload = () => {
+                                const maxW = 400;
+                                const scale = Math.min(1, maxW / img.width);
+                                canvas.width = img.width * scale;
+                                canvas.height = img.height * scale;
+                                ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                const compressed = canvas.toDataURL('image/jpeg', 0.7);
+                                setProductForm(p => ({ ...p, image: compressed }));
+                              };
+                              img.src = URL.createObjectURL(file);
+                            } else {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                setProductForm(p => ({ ...p, image: ev.target?.result as string }));
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                      {/* Or enter URL/emoji */}
+                      <input
+                        type="text"
+                        value={productForm.image?.startsWith('data:') ? '' : (productForm.image || '')}
+                        onChange={(e) => setProductForm(p => ({ ...p, image: e.target.value }))}
+                        className="input flex-1"
+                        placeholder="أو رابط URL أو إيموجي 📦"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">ارفع صورة من جهازك أو أدخل رابط أو إيموجي</p>
                   </div>
                   <div className="form-group flex items-end gap-4">
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -267,14 +328,16 @@ const SiteSettings: React.FC = () => {
               </div>
             )}
 
-            {site.products?.length > 0 ? (
+            {activeSite.products?.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {site.products.map(product => (
+                {activeSite.products.map(product => (
                   <div key={product.id} className="card p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center text-2xl">
-                          {product.image?.startsWith('http') ? <img src={product.image} alt="" className="w-full h-full object-cover rounded-xl" /> : product.image || '📦'}
+                        <div className="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center text-2xl overflow-hidden">
+                          {(product.image?.startsWith('http') || product.image?.startsWith('data:'))
+                            ? <img src={product.image} alt="" className="w-full h-full object-cover rounded-xl" onError={(e) => { (e.target as HTMLImageElement).outerHTML = '<span style="font-size:24px">📦</span>'; }} />
+                            : <span>{product.image || '📦'}</span>}
                         </div>
                         <div>
                           <h4 className="font-semibold text-gray-800">{product.name}</h4>
@@ -298,7 +361,7 @@ const SiteSettings: React.FC = () => {
                       </span>
                       <div className="flex gap-2">
                         <button onClick={() => handleEditProduct(product)} className="btn btn-ghost btn-sm">تعديل</button>
-                        <button onClick={() => deleteProduct(site.id, product.id)} className="btn btn-danger btn-sm"><Trash2 size={14} /></button>
+                        <button onClick={() => deleteProduct(activeSite.id, product.id)} className="btn btn-danger btn-sm"><Trash2 size={14} /></button>
                       </div>
                     </div>
                   </div>
@@ -363,9 +426,9 @@ const SiteSettings: React.FC = () => {
               </div>
             )}
 
-            {site.discountCodes?.length > 0 ? (
+            {activeSite.discountCodes?.length > 0 ? (
               <div className="space-y-3">
-                {site.discountCodes.map(code => (
+                {activeSite.discountCodes.map(code => (
                   <div key={code.id} className="card p-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
@@ -389,7 +452,7 @@ const SiteSettings: React.FC = () => {
                         <div className="text-lg font-bold text-gray-800">{code.usedCount}</div>
                         <div className="text-xs text-gray-400">استخدام</div>
                       </div>
-                      <button onClick={() => deleteDiscountCode(site.id, code.id)} className="btn btn-danger btn-sm"><Trash2 size={14} /></button>
+                      <button onClick={() => deleteDiscountCode(activeSite.id, code.id)} className="btn btn-danger btn-sm"><Trash2 size={14} /></button>
                     </div>
                   </div>
                 ))}
@@ -404,67 +467,225 @@ const SiteSettings: React.FC = () => {
           </div>
         )}
 
-        {/* Orders */}
+        {/* Orders - Amazon-like System */}
         {activeTab === 'orders' && (
           <div className="animate-fade">
-            <h2 className="text-xl font-semibold text-gray-800 mb-6">الطلبات</h2>
-            {site.orders?.length > 0 ? (
-              <div className="space-y-4">
-                {site.orders.map(order => (
-                  <div key={order.id} className="card p-5">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-bold text-gray-800">#{order.id.slice(0, 8)}</span>
-                          <span className={`badge ${
-                            order.status === 'delivered' ? 'badge-success' :
-                            order.status === 'shipped' ? 'badge-info' :
-                            order.status === 'confirmed' ? 'badge-warning' :
-                            order.status === 'cancelled' ? 'badge-danger' : 'badge-info'
-                          }`}>
-                            {order.status === 'pending' ? 'قيد الانتظار' :
-                             order.status === 'confirmed' ? 'مؤكد' :
-                             order.status === 'shipped' ? 'تم الشحن' :
-                             order.status === 'delivered' ? 'تم التوصيل' : 'ملغي'}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-500">{new Date(order.createdAt).toLocaleString('ar-EG')}</p>
-                      </div>
-                      <div className="text-left">
-                        <div className="text-xl font-bold text-indigo-600">{order.total} {settings.currency}</div>
-                        {order.discount > 0 && <div className="text-sm text-green-600">خصم: {order.discount}</div>}
-                      </div>
-                    </div>
-                    <div className="border-t border-gray-100 pt-4">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-gray-400">العميل:</span>
-                          <span className="text-gray-800 mr-2">{order.customerName}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-400">الهاتف:</span>
-                          <span className="text-gray-800 mr-2" dir="ltr">{order.customerPhone}</span>
-                        </div>
-                      </div>
-                      <div className="mt-2">
-                        <span className="text-gray-400 text-sm">المنتجات:</span>
-                        <div className="flex flex-wrap gap-2 mt-1">
-                          {order.items.map((item, i) => (
-                            <span key={i} className="bg-gray-100 px-2 py-1 rounded text-sm">
-                              {item.product.name} × {item.quantity}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
+            {/* Order Stats */}
+            {activeSite.orders?.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
+                {[
+                  { label: 'الكل', count: activeSite.orders.length, color: 'bg-gray-100 text-gray-700', filter: 'all' },
+                  { label: 'قيد الانتظار', count: activeSite.orders.filter(o => o.status === 'pending').length, color: 'bg-amber-50 text-amber-700', filter: 'pending' },
+                  { label: 'تم التأكيد', count: activeSite.orders.filter(o => o.status === 'confirmed').length, color: 'bg-blue-50 text-blue-700', filter: 'confirmed' },
+                  { label: 'تم الشحن', count: activeSite.orders.filter(o => o.status === 'shipped').length, color: 'bg-purple-50 text-purple-700', filter: 'shipped' },
+                  { label: 'تم التوصيل', count: activeSite.orders.filter(o => o.status === 'delivered').length, color: 'bg-green-50 text-green-700', filter: 'delivered' },
+                ].map((s, i) => (
+                  <div key={i} className={`${s.color} rounded-xl p-4 text-center cursor-pointer hover:opacity-80 transition-opacity`}>
+                    <div className="text-2xl font-bold">{s.count}</div>
+                    <div className="text-xs font-medium mt-1">{s.label}</div>
                   </div>
                 ))}
               </div>
+            )}
+
+            {/* Revenue Summary */}
+            {activeSite.orders?.length > 0 && (
+              <div className="card p-5 mb-6" style={{ background: 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)', border: 'none' }}>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <div className="text-2xl font-bold text-indigo-700">
+                      {activeSite.orders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + o.total, 0)} {settings.currency}
+                    </div>
+                    <div className="text-xs text-indigo-500 mt-1">إجمالي المبيعات</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-green-700">
+                      {activeSite.orders.filter(o => o.status === 'delivered').reduce((s, o) => s + o.total, 0)} {settings.currency}
+                    </div>
+                    <div className="text-xs text-green-600 mt-1">تم التوصيل</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-amber-700">
+                      {activeSite.orders.filter(o => o.status === 'pending').length}
+                    </div>
+                    <div className="text-xs text-amber-600 mt-1">بانتظار الإجراء</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">إدارة الطلبات</h2>
+            {activeSite.orders?.length > 0 ? (
+              <div className="space-y-4">
+                {[...activeSite.orders].reverse().map(order => {
+                  const statusSteps = [
+                    { key: 'pending', label: 'قيد الانتظار', icon: '⏳', color: '#f59e0b' },
+                    { key: 'confirmed', label: 'تم التأكيد', icon: '✅', color: '#3b82f6' },
+                    { key: 'shipped', label: 'تم الشحن', icon: '🚚', color: '#8b5cf6' },
+                    { key: 'delivered', label: 'تم التوصيل', icon: '📦', color: '#10b981' },
+                  ];
+                  const currentIdx = statusSteps.findIndex(s => s.key === order.status);
+                  const isCancelled = order.status === 'cancelled';
+
+                  return (
+                    <div key={order.id} className={`card overflow-hidden ${isCancelled ? 'opacity-60' : ''}`}>
+                      {/* Order Header */}
+                      <div className="p-5 flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="font-bold text-gray-800 text-lg">طلب #{order.id.slice(0, 8).toUpperCase()}</span>
+                            {isCancelled && <span className="badge" style={{ background: '#fef2f2', color: '#dc2626' }}>ملغي</span>}
+                          </div>
+                          <p className="text-sm text-gray-500">
+                            {new Date(order.createdAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                        <div className="text-left">
+                          <div className="text-2xl font-bold text-indigo-600">{order.total} {settings.currency}</div>
+                          {order.discount > 0 && <div className="text-sm text-green-600">خصم: -{order.discount} {settings.currency}</div>}
+                          {order.discountCode && <div className="text-xs text-gray-400 font-mono">كود: {order.discountCode}</div>}
+                        </div>
+                      </div>
+
+                      {/* Progress Tracker - Amazon Style */}
+                      {!isCancelled && (
+                        <div className="px-5 pb-4">
+                          <div className="flex items-center justify-between relative">
+                            {/* Progress Line */}
+                            <div className="absolute top-5 right-5 left-5 h-1 bg-gray-200 rounded-full" style={{ zIndex: 0 }}>
+                              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${(currentIdx / (statusSteps.length - 1)) * 100}%`, background: statusSteps[currentIdx]?.color || '#e5e7eb' }} />
+                            </div>
+                            {statusSteps.map((step, i) => (
+                              <div key={step.key} className="flex flex-col items-center relative" style={{ zIndex: 1 }}>
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg border-2 transition-all ${
+                                  i <= currentIdx
+                                    ? 'border-transparent text-white'
+                                    : 'border-gray-200 bg-white text-gray-400'
+                                }`} style={i <= currentIdx ? { background: step.color } : {}}>
+                                  {i < currentIdx ? '✓' : step.icon}
+                                </div>
+                                <span className={`text-xs mt-2 font-medium ${i <= currentIdx ? 'text-gray-800' : 'text-gray-400'}`}>{step.label}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Customer Info */}
+                      <div className="px-5 py-4 bg-gray-50 border-t border-gray-100">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-400 block text-xs mb-1">👤 العميل</span>
+                            <span className="text-gray-800 font-medium">{order.customerName}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 block text-xs mb-1">📱 الهاتف</span>
+                            <span className="text-gray-800 font-medium" dir="ltr">{order.customerPhone}</span>
+                          </div>
+                          {order.customerEmail && (
+                            <div>
+                              <span className="text-gray-400 block text-xs mb-1">📧 البريد</span>
+                              <span className="text-gray-800 font-medium text-xs" dir="ltr">{order.customerEmail}</span>
+                            </div>
+                          )}
+                          {order.customerAddress && (
+                            <div>
+                              <span className="text-gray-400 block text-xs mb-1">📍 العنوان</span>
+                              <span className="text-gray-800 font-medium text-xs">{order.customerAddress}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Products List */}
+                      <div className="px-5 py-4 border-t border-gray-100">
+                        <span className="text-xs text-gray-400 mb-2 block">المنتجات ({order.items.length})</span>
+                        <div className="space-y-2">
+                          {order.items.map((item, i) => (
+                            <div key={i} className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center text-lg overflow-hidden">
+                                  {(item.product.image?.startsWith('http') || item.product.image?.startsWith('data:'))
+                                    ? <img src={item.product.image} className="w-full h-full object-cover" />
+                                    : <span>{item.product.image || '📦'}</span>}
+                                </div>
+                                <div>
+                                  <span className="text-gray-800 font-medium text-sm">{item.product.name}</span>
+                                  <span className="text-gray-400 text-xs mr-2">× {item.quantity}</span>
+                                </div>
+                              </div>
+                              <span className="text-gray-800 font-semibold text-sm">{item.product.price * item.quantity} {settings.currency}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {/* Order Total Breakdown */}
+                        <div className="mt-3 pt-3 border-t border-gray-200 space-y-1">
+                          <div className="flex justify-between text-sm text-gray-500">
+                            <span>المجموع الفرعي</span>
+                            <span>{order.subtotal} {settings.currency}</span>
+                          </div>
+                          {order.discount > 0 && (
+                            <div className="flex justify-between text-sm text-green-600">
+                              <span>الخصم</span>
+                              <span>-{order.discount} {settings.currency}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-base font-bold text-gray-800 pt-1">
+                            <span>الإجمالي</span>
+                            <span>{order.total} {settings.currency}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons - Amazon Style */}
+                      {!isCancelled && (
+                        <div className="px-5 py-4 border-t border-gray-100 flex flex-wrap gap-2">
+                          {order.status === 'pending' && (
+                            <>
+                              <button onClick={() => updateOrderStatus(activeSite.id, order.id, 'confirmed')} className="btn btn-sm" style={{ background: '#3b82f6', color: 'white' }}>
+                                ✅ تأكيد الطلب
+                              </button>
+                              <button onClick={() => { if(confirm('هل تريد إلغاء هذا الطلب؟')) updateOrderStatus(activeSite.id, order.id, 'cancelled'); }} className="btn btn-danger btn-sm">
+                                ✕ إلغاء الطلب
+                              </button>
+                            </>
+                          )}
+                          {order.status === 'confirmed' && (
+                            <button onClick={() => updateOrderStatus(activeSite.id, order.id, 'shipped')} className="btn btn-sm" style={{ background: '#8b5cf6', color: 'white' }}>
+                              🚚 تم الشحن
+                            </button>
+                          )}
+                          {order.status === 'shipped' && (
+                            <button onClick={() => updateOrderStatus(activeSite.id, order.id, 'delivered')} className="btn btn-sm" style={{ background: '#10b981', color: 'white' }}>
+                              📦 تم التوصيل
+                            </button>
+                          )}
+                          {order.status === 'delivered' && (
+                            <span className="text-green-600 text-sm font-medium flex items-center gap-2">✅ تم إكمال الطلب بنجاح</span>
+                          )}
+                          {/* Quick Actions */}
+                          {order.customerPhone && (
+                            <a href={`https://wa.me/${order.customerPhone.replace(/[^0-9]/g, '')}`} target="_blank" className="btn btn-sm" style={{ background: '#25D366', color: 'white' }}>
+                              💬 واتساب العميل
+                            </a>
+                          )}
+                        </div>
+                      )}
+                      {isCancelled && (
+                        <div className="px-5 py-3 border-t border-gray-100 bg-red-50">
+                          <span className="text-red-600 text-sm">❌ تم إلغاء هذا الطلب</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             ) : (
               <div className="empty-state card">
-                <div className="text-5xl mb-4">📋</div>
-                <h3 className="title">لا توجد طلبات</h3>
-                <p className="desc">ستظهر الطلبات هنا عندما يطلب العملاء من متجرك</p>
+                <div className="text-6xl mb-4">📋</div>
+                <h3 className="title">لا توجد طلبات بعد</h3>
+                <p className="desc">عندما يشتري عملاؤك من متجرك ستظهر الطلبات هنا</p>
+                <p className="desc mt-2">يمكنك تتبع حالة كل طلب وإدارته كالمحترفين</p>
               </div>
             )}
           </div>

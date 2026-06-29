@@ -11,8 +11,9 @@ const Dashboard: React.FC = () => {
   const totalProducts = userSites.reduce((acc, s) => acc + (s.products?.length || 0), 0);
 
 
+  const { getSiteUrl } = useApp();
   const copyLink = (slug: string, id: string) => {
-    const link = `${window.location.origin}${window.location.pathname}#/site/${slug}`;
+    const link = getSiteUrl(slug);
     navigator.clipboard.writeText(link);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
@@ -111,7 +112,7 @@ const Dashboard: React.FC = () => {
                   <div className="content">
                     <h3 className="title">{site.siteName}</h3>
                     <div className="flex items-center gap-2 mb-2">
-                      <p className="url flex-1" dir="ltr">#/site/{site.siteSlug}</p>
+                      <p className="url flex-1" dir="ltr">?site={site.siteSlug}</p>
                       <button onClick={() => copyLink(site.siteSlug, site.id)} className="text-gray-400 hover:text-indigo-500" title="نسخ الرابط">
                         {copiedId === site.id ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
                       </button>

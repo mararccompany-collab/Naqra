@@ -51,8 +51,9 @@ const EditSite: React.FC = () => {
     setCurrentPage('view-site');
   };
 
+  const { getSiteUrl } = useApp();
   const copyLink = () => {
-    const link = `${window.location.origin}${window.location.pathname}#/site/${siteSlug}`;
+    const link = getSiteUrl(siteSlug);
     navigator.clipboard.writeText(link);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -82,7 +83,7 @@ const EditSite: React.FC = () => {
         <div className="card p-4 mb-6 flex items-center justify-between">
           <div>
             <span className="text-sm text-gray-500">رابط موقعك:</span>
-            <p className="font-mono text-indigo-600" dir="ltr">{window.location.origin}#/site/{siteSlug}</p>
+            <p className="font-mono text-indigo-600 text-sm break-all" dir="ltr">{getSiteUrl(siteSlug)}</p>
           </div>
           <button onClick={copyLink} className="btn btn-secondary btn-sm">
             {copied ? <><Check size={14} /> تم النسخ</> : <><Copy size={14} /> نسخ</>}

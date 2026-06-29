@@ -154,7 +154,7 @@ const CreateSite: React.FC = () => {
               <div className="form-group">
                 <label className="form-label">رابط الموقع *</label>
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-400 text-sm whitespace-nowrap" dir="ltr">#/site/</span>
+                  <span className="text-gray-400 text-sm whitespace-nowrap" dir="ltr">?site=</span>
                   <input type="text" value={siteSlug} onChange={(e) => setSiteSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} className="input flex-1" placeholder="my-store" dir="ltr" />
                 </div>
                 <p className="form-hint">هذا الرابط سيستخدمه زوارك للوصول لموقعك</p>
@@ -280,7 +280,7 @@ const CreateSite: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-sm text-gray-400">رابط الموقع</span>
-                  <p className="font-mono text-indigo-600" dir="ltr">#/site/{siteSlug}</p>
+                  <p className="font-mono text-indigo-600" dir="ltr">?site={siteSlug}</p>
                 </div>
                 <div>
                   <span className="text-sm text-gray-400">القالب</span>

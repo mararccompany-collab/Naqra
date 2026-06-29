@@ -4,7 +4,7 @@ import { Product } from '../types';
 import { ArrowRight, Mail, Phone, MapPin, Star, ShoppingCart, Send, Menu, X, Plus, Minus, Trash2, Tag, Check } from 'lucide-react';
 
 const SiteViewer: React.FC = () => {
-  const { viewingSiteSlug, sites, currentUser, setCurrentPage, setViewingSiteSlug, recordVisit, cart, addToCart, removeFromCart, updateCartQuantity, clearCart, validateDiscountCode, createOrder } = useApp();
+  const { viewingSiteSlug, sites, setCurrentPage, setViewingSiteSlug, recordVisit, cart, addToCart, removeFromCart, updateCartQuantity, clearCart, validateDiscountCode, createOrder, currentUser } = useApp();
   const [mobileMenu, setMobileMenu] = useState(false);
   const [showCart, setShowCart] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -15,36 +15,57 @@ const SiteViewer: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   const site = sites.find(s => s.siteSlug === viewingSiteSlug);
+  
+  // Check if current user is the owner of this site
+  const isOwner = currentUser && site ? site.userId === currentUser.id : false;
 
+  // Record visit only once per session
+  const [visitRecorded, setVisitRecorded] = useState(false);
   useEffect(() => {
-    if (site) recordVisit(site.id, 'home');
-  }, [site?.id]);
+    if (site && !visitRecorded) {
+      recordVisit(site.id, 'home');
+      setVisitRecorded(true);
+    }
+  }, [site?.id, visitRecorded]);
+
+  // Show loading while we wait for data (max 8 seconds then show not found)
+  const [timedOut, setTimedOut] = useState(false);
+  useEffect(() => {
+    if (!site) {
+      const t = setTimeout(() => setTimedOut(true), 8000);
+      return () => clearTimeout(t);
+    }
+  }, [site]);
 
   if (!site) {
+    if (!timedOut) {
+      return (
+        <div className="min-h-screen bg-white flex items-center justify-center p-6">
+          <div className="text-center">
+            <div className="w-14 h-14 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-6"></div>
+            <p className="text-gray-500 text-lg">جاري تحميل الموقع...</p>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center p-6">
-        <div className="text-center animate-fade bg-white p-12 rounded-3xl shadow-xl max-w-md">
+        <div className="text-center bg-white p-12 rounded-3xl shadow-xl max-w-md">
           <div className="text-7xl mb-6">🔍</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-3">الموقع غير موجود</h2>
-          <p className="text-gray-500 mb-8">تأكد من صحة الرابط أو أن الموقع منشور</p>
-          <button onClick={() => { setViewingSiteSlug(null); setCurrentPage('landing'); }} className="btn btn-primary">
-            <ArrowRight size={16} /> الذهاب للرئيسية
-          </button>
+          <p className="text-gray-500 mb-4">تأكد من صحة الرابط</p>
         </div>
       </div>
     );
   }
 
-  if (!site.isPublished) {
+  if (!site.isPublished && !isOwner) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-6">
         <div className="text-center animate-fade bg-white p-12 rounded-3xl shadow-xl max-w-md">
           <div className="text-7xl mb-6">🚧</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-3">الموقع قيد الإنشاء</h2>
           <p className="text-gray-500 mb-8">هذا الموقع لم يُنشر بعد</p>
-          <button onClick={() => { setViewingSiteSlug(null); setCurrentPage('landing'); }} className="btn btn-primary">
-            <ArrowRight size={16} /> العودة
-          </button>
         </div>
       </div>
     );
@@ -118,10 +139,10 @@ const SiteViewer: React.FC = () => {
 
   return (
     <div style={{ background: bg, color: textColor, fontFamily: site.fontFamily + ', sans-serif', minHeight: '100vh' }}>
-      {/* Back Button - يظهر فقط لصاحب الموقع */}
-      {currentUser && currentUser.id === site.userId && (
-        <button onClick={() => { setViewingSiteSlug(null); setCurrentPage('dashboard'); }} className="back-btn">
-          <ArrowRight size={14} /> العودة للوحة التحكم
+      {/* Back Button - only for the site owner */}
+      {isOwner && (
+        <button onClick={() => { setViewingSiteSlug(null); setCurrentPage('dashboard'); window.location.hash = ''; }} className="back-btn">
+          <ArrowRight size={14} /> لوحة التحكم
         </button>
       )}
 
@@ -196,8 +217,10 @@ const SiteViewer: React.FC = () => {
                 <div className="p-6 space-y-4">
                   {cart.map(item => (
                     <div key={item.product.id} className="flex gap-4 p-4 bg-gray-50 rounded-xl">
-                      <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center text-2xl flex-shrink-0">
-                        {item.product.image?.startsWith('http') ? <img src={item.product.image} className="w-full h-full object-cover rounded-lg" /> : item.product.image || '📦'}
+                      <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden">
+                        {(item.product.image?.startsWith('http') || item.product.image?.startsWith('data:'))
+                          ? <img src={item.product.image} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).outerHTML = '<span style="font-size:28px">📦</span>'; }} />
+                          : <span>{item.product.image || '📦'}</span>}
                       </div>
                       <div className="flex-1">
                         <h4 className="font-semibold text-gray-800 text-sm mb-1">{item.product.name}</h4>
@@ -341,8 +364,8 @@ const SiteViewer: React.FC = () => {
                       {filteredProducts.map((product) => (
                         <div key={product.id} style={{ background: cardBg, borderRadius: '24px', overflow: 'hidden', border: `1px solid ${borderColor}`, transition: 'transform 0.3s, box-shadow 0.3s' }} className="hover:shadow-xl hover:-translate-y-1">
                           <div style={{ height: '200px', background: `linear-gradient(135deg, ${site.primaryColor}10, ${site.secondaryColor}10)`, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                            {product.image?.startsWith('http') ? (
-                              <img src={product.image} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            {(product.image?.startsWith('http') || product.image?.startsWith('data:')) ? (
+                              <img src={product.image} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.innerHTML = '<span style="font-size:72px">📦</span>'; }} />
                             ) : (
                               <span style={{ fontSize: '72px' }}>{product.image || '📦'}</span>
                             )}
