@@ -245,7 +245,7 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Pricing */}
-      <section className="section" style={{ background: '#f8fafc' }}>
+      <section id="pricing" className="section" style={{ background: '#f8fafc' }}>
         <div className="container">
           <h2 className="section-title">أسعار مناسبة للجميع</h2>
           <p className="section-subtitle">ابدأ مجاناً وقم بالترقية حسب احتياجاتك</p>

@@ -142,15 +142,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => { if (editingSite) { const f = sites.find(s => s.id === editingSite.id); if (f && JSON.stringify(f) !== JSON.stringify(editingSite)) setEditingSiteRaw(f); } }, [sites]);
 
   // Sync currentUser with latest users data (wallet, plan updates from admin)
+  const syncCurrentUser = useCallback(() => {
+    if (!currentUser) return;
+    const updated = users.find(u => u.id === currentUser.id);
+    if (!updated) return;
+    const needsSync = updated.wallet !== currentUser.wallet || updated.plan !== currentUser.plan || updated.name !== currentUser.name || updated.email !== currentUser.email;
+    if (needsSync) setCurrentUser(updated);
+  }, [currentUser, users]);
+
+  // Sync on users array changes (from Firebase or localStorage)
+  useEffect(() => { syncCurrentUser(); }, [users]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Poll every 3 seconds for wallet/plan changes (cross-tab / Firebase fallback)
   useEffect(() => {
-    if (currentUser) {
-      const updated = users.find(u => u.id === currentUser.id);
-      if (updated) {
-        const needsSync = updated.wallet !== currentUser.wallet || updated.plan !== currentUser.plan || updated.name !== currentUser.name || updated.email !== currentUser.email;
-        if (needsSync) setCurrentUser(updated);
-      }
-    }
-  }, [users]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!currentUser) return;
+    const interval = setInterval(syncCurrentUser, 3000);
+    return () => clearInterval(interval);
+  }, [currentUser, syncCurrentUser]);
 
   // Save slug to sessionStorage so iframe can find it
   useEffect(() => {

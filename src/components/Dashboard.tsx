@@ -10,6 +10,11 @@ const Dashboard: React.FC = () => {
   
   const planInfo = PLAN_LIMITS[currentUser?.plan || 'free'];
   const planLimit = planInfo.maxSites === Infinity ? 'غير محدود' : `${planInfo.maxSites}`;
+  const openWhatsAppTopUp = () => {
+    const msg = encodeURIComponent('مرحباً، أريد شحن محفظتي في Naqra. (الرقم: ' + (currentUser?.email || '') + ')');
+    window.open(`https://wa.me/201229938115?text=${msg}`, '_blank');
+  };
+  const goToUpgrade = () => { setCurrentPage('landing'); setTimeout(() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' }), 300); };
 
   const { getSiteUrl } = useApp();
   const copyLink = (slug: string, id: string) => {
@@ -82,8 +87,8 @@ const Dashboard: React.FC = () => {
                     <span className="text-gray-400 text-xs">المواقع: {userSites.length}/{planLimit}</span>
                   </div>
                 </div>
-                <button onClick={() => setCurrentPage('landing')} className="px-6 py-3 rounded-2xl font-semibold text-sm border-none cursor-pointer transition-all hover:scale-105" style={{ background: 'linear-gradient(135deg, #6366f1, #06b6d4)', color: 'white' }}>
-                  شحن المحفظة
+                <button onClick={openWhatsAppTopUp} className="px-6 py-3 rounded-2xl font-semibold text-sm border-none cursor-pointer transition-all hover:scale-105" style={{ background: 'linear-gradient(135deg, #25D366, #128C7E)', color: 'white' }}>
+                  <MessageCircle size={16} className="inline ml-1" />شحن المحفظة عبر واتساب
                 </button>
               </div>
             </div>
@@ -99,14 +104,14 @@ const Dashboard: React.FC = () => {
             <h4 className="font-semibold text-gray-800 text-sm">إنشاء موقع</h4>
             <p className="text-xs text-gray-500">موقع أو متجر جديد</p>
           </div>
-          <div onClick={() => setCurrentPage('landing')} className="card p-5 text-center cursor-pointer hover:shadow-lg transition-all border-2 border-transparent hover:border-emerald-200">
+          <div onClick={openWhatsAppTopUp} className="card p-5 text-center cursor-pointer hover:shadow-lg transition-all border-2 border-transparent hover:border-emerald-200">
             <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
               <Wallet size={24} className="text-white" />
             </div>
             <h4 className="font-semibold text-gray-800 text-sm">شحن المحفظة</h4>
-            <p className="text-xs text-gray-500">أضف رصيداً لمحفظتك</p>
+            <p className="text-xs text-gray-500">أضف رصيداً عبر واتساب</p>
           </div>
-          <div onClick={() => setCurrentPage('landing')} className="card p-5 text-center cursor-pointer hover:shadow-lg transition-all border-2 border-transparent hover:border-amber-200">
+          <div onClick={goToUpgrade} className="card p-5 text-center cursor-pointer hover:shadow-lg transition-all border-2 border-transparent hover:border-amber-200">
             <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
               <ShieldCheck size={24} className="text-white" />
             </div>

@@ -5,6 +5,11 @@ import { Save, Check, Lock, Globe, LogOut, Edit3, Settings, ExternalLink, Wallet
 
 const UserProfile: React.FC = () => {
   const { currentUser, updateUserProfile, updateUserPassword, getUserSites, setCurrentPage, setEditingSite, setViewingSiteSlug, logout, getTransactions } = useApp();
+  const openWhatsAppTopUp = () => {
+    const msg = encodeURIComponent('مرحباً، أريد شحن محفظتي في Naqra. (البريد: ' + (currentUser?.email || '') + ')');
+    window.open(`https://wa.me/201229938115?text=${msg}`, '_blank');
+  };
+  const goToUpgrade = () => { setCurrentPage('landing'); setTimeout(() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' }), 300); };
   const userSites = getUserSites();
   const planInfo = PLAN_LIMITS[currentUser?.plan || 'free'];
   const planLimit = planInfo.maxSites === Infinity ? 'غير محدود' : `${planInfo.maxSites}`;
@@ -136,7 +141,8 @@ const UserProfile: React.FC = () => {
               </div>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setCurrentPage('landing')} className="btn btn-primary btn-sm flex-1">شحن المحفظة</button>
+              <button onClick={openWhatsAppTopUp} className="btn btn-sm flex-1" style={{ background: '#25D366', color: 'white' }}>شحن عبر واتساب</button>
+              <button onClick={goToUpgrade} className="btn btn-amber btn-sm flex-1">ترقية الباقة</button>
             </div>
           </div>
           <div className="card p-6">
