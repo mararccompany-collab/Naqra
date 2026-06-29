@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { User, ClientSite, SiteTemplate, DailyAnalytics, Page, SiteVisit, Product, DiscountCode, Order, CartItem, ContactMessage } from './types';
+import { User, ClientSite, SiteTemplate, DailyAnalytics, Page, SiteVisit, Product, DiscountCode, Order, CartItem, ContactMessage, Plan, PLAN_LIMITS, Transaction } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { fbSave, fbDelete, fbListen, fbTest } from './firebase';
 
@@ -24,7 +24,7 @@ interface AppState {
   logout: () => void;
   updateUserProfile: (name: string, email: string) => boolean;
   updateUserPassword: (currentPassword: string, newPassword: string) => boolean;
-  createSite: (s: Omit<ClientSite, 'id' | 'createdAt' | 'updatedAt'>) => ClientSite;
+  createSite: (s: Omit<ClientSite, 'id' | 'createdAt' | 'updatedAt'>) => boolean;
   updateSite: (s: ClientSite) => void;
   deleteSite: (id: string) => void;
   duplicateSite: (id: string) => ClientSite | null;
@@ -33,6 +33,14 @@ interface AppState {
   getAllAnalytics: () => DailyAnalytics[];
   recordVisit: (siteId: string, page: string) => void;
   deleteUser: (id: string) => void;
+  canCreateMoreSites: () => boolean;
+  updateUserWallet: (userId: string, amount: number) => void;
+  setUserPlan: (userId: string, plan: Plan) => void;
+  addTransaction: (userId: string, type: 'deposit' | 'subscription' | 'withdrawal', amount: number, note: string) => void;
+  getTransactions: (userId: string) => Transaction[];
+  getAllTransactions: () => Transaction[];
+  confirmTransaction: (txId: string) => void;
+  deleteTransaction: (txId: string) => void;
   addProduct: (siteId: string, p: Product) => void;
   updateProduct: (siteId: string, p: Product) => void;
   deleteProduct: (siteId: string, pid: string) => void;
@@ -113,6 +121,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isAdmin, setIsAdmin] = useState(false);
   const [users, setUsers] = useState<User[]>(() => { try { return JSON.parse(localStorage.getItem('naqra_users') || '[]'); } catch { return []; } });
   const [sites, setSites] = useState<ClientSite[]>(() => { try { return JSON.parse(localStorage.getItem('naqra_sites') || '[]'); } catch { return []; } });
+  const [transactions, setTransactions] = useState<Transaction[]>(() => { try { return JSON.parse(localStorage.getItem('naqra_transactions') || '[]'); } catch { return []; } });
   const [editingSite, setEditingSiteRaw] = useState<ClientSite | null>(null);
   const [viewingSiteSlug, setViewingSiteSlug] = useState<string | null>(INITIAL_SLUG);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -130,6 +139,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // localStorage
   useEffect(() => { localStorage.setItem('naqra_users', JSON.stringify(users)); }, [users]);
   useEffect(() => { localStorage.setItem('naqra_sites', JSON.stringify(sites)); }, [sites]);
+  useEffect(() => { localStorage.setItem('naqra_transactions', JSON.stringify(transactions)); }, [transactions]);
 
   // Firebase
   useEffect(() => {
@@ -167,7 +177,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Auth
   const registerUser = (name: string, email: string, password: string) => {
     if (users.find(u => u.email === email)) return false;
-    const u: User = { id: uuidv4(), name, email, password, createdAt: new Date().toISOString() };
+    const u: User = { id: uuidv4(), name, email, password, createdAt: new Date().toISOString(), plan: 'free', wallet: 0 };
     setUsers(p => [...p, u]); fbSave('users', u.id, u);
     setCurrentUser(u); setCurrentPage('dashboard'); return true;
   };
@@ -198,9 +208,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const modSite = (siteId: string, fn: (s: ClientSite) => ClientSite) => {
     setSites(prev => { const next = prev.map(s => s.id === siteId ? fn({ ...s, updatedAt: new Date().toISOString() }) : s); const c = next.find(s => s.id === siteId); if (c) fbSave('sites', c.id, c); return next; });
   };
-  const createSite = (d: Omit<ClientSite, 'id' | 'createdAt' | 'updatedAt'>): ClientSite => {
+  const canCreateMoreSites = () => {
+    if (!currentUser) return false;
+    const userSitesCount = sites.filter(s => s.userId === currentUser.id).length;
+    const limit = PLAN_LIMITS[currentUser.plan].maxSites;
+    return userSitesCount < limit;
+  };
+
+  const createSite = (d: Omit<ClientSite, 'id' | 'createdAt' | 'updatedAt'>): boolean => {
+    if (!currentUser || !canCreateMoreSites()) return false;
     const s: ClientSite = { ...d, id: uuidv4(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-    setSites(p => [...p, s]); fbSave('sites', s.id, s); return s;
+    setSites(p => [...p, s]); fbSave('sites', s.id, s); return true;
   };
   const updateSite = (s: ClientSite) => { const u = { ...s, updatedAt: new Date().toISOString() }; setSites(p => p.map(x => x.id === u.id ? u : x)); fbSave('sites', u.id, u); };
   const deleteSite = (id: string) => { setSites(p => p.filter(s => s.id !== id)); fbDelete('sites', id); };
@@ -228,6 +246,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const getSiteAnalytics = (id: string) => buildA(sites.find(s => s.id === id)?.visits || []);
   const getAllAnalytics = () => { const a: SiteVisit[] = []; sites.forEach(s => { if (s.visits) a.push(...s.visits); }); return buildA(a); };
   const deleteUser = (id: string) => { const sids = sites.filter(s => s.userId === id).map(s => s.id); setUsers(p => p.filter(u => u.id !== id)); fbDelete('users', id); sids.forEach(sid => { setSites(p => p.filter(s => s.id !== sid)); fbDelete('sites', sid); }); };
+
+  // Wallet / Plans
+  const updateUserWallet = (userId: string, amount: number) => {
+    setUsers(p => p.map(u => u.id === userId ? { ...u, wallet: Math.max(0, u.wallet + amount) } : u));
+    if (currentUser?.id === userId) setCurrentUser(prev => prev ? { ...prev, wallet: Math.max(0, prev.wallet + amount) } : null);
+  };
+  const setUserPlan = (userId: string, plan: Plan) => {
+    setUsers(p => p.map(u => u.id === userId ? { ...u, plan } : u));
+    if (currentUser?.id === userId) setCurrentUser(prev => prev ? { ...prev, plan } : null);
+  };
+  const addTransaction = (userId: string, type: 'deposit' | 'subscription' | 'withdrawal', amount: number, note: string) => {
+    const t: Transaction = { id: uuidv4(), userId, type, amount, note, createdAt: new Date().toISOString(), confirmed: false };
+    setTransactions(p => [...p, t]);
+  };
+  const getTransactions = (userId: string) => transactions.filter(t => t.userId === userId);
+  const getAllTransactions = () => transactions;
+  const confirmTransaction = (txId: string) => {
+    const tx = transactions.find(t => t.id === txId);
+    if (!tx || tx.confirmed) return;
+    tx.confirmed = true;
+    if (tx.type === 'deposit' && tx.amount > 0) {
+      updateUserWallet(tx.userId, tx.amount);
+    }
+    setTransactions(p => p.map(t => t.id === txId ? { ...t, confirmed: true } : t));
+  };
+  const deleteTransaction = (txId: string) => {
+    setTransactions(p => p.filter(t => t.id !== txId));
+  };
 
   // Products / Discounts / Orders
   const addProduct = (sid: string, p: Product) => modSite(sid, s => ({ ...s, products: [...(s.products || []), p] }));
@@ -259,6 +305,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       registerUser, loginUser, loginAdmin, logout, updateUserProfile, updateUserPassword,
       createSite, updateSite, deleteSite, duplicateSite, getUserSites,
       getSiteAnalytics, getAllAnalytics, recordVisit, deleteUser,
+      canCreateMoreSites, updateUserWallet, setUserPlan, addTransaction, getTransactions, getAllTransactions, confirmTransaction, deleteTransaction,
       addProduct, updateProduct, deleteProduct,
       addDiscountCode, deleteDiscountCode, validateDiscountCode,
       createOrder, updateOrderStatus, submitContactMessage,

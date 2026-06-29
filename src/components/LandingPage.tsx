@@ -3,8 +3,10 @@ import { useApp } from '../store';
 import { ArrowLeft, Globe, Zap, Shield, Palette, BarChart3, Users, Check, Star, ShoppingCart, X, CreditCard, Smartphone, Wallet, Building } from 'lucide-react';
 
 const LandingPage: React.FC = () => {
-  const { setCurrentPage } = useApp();
+  const { setCurrentPage, currentUser, updateUserWallet, setUserPlan, addTransaction } = useApp();
   const [showSubModal, setShowSubModal] = useState<string | null>(null);
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('');
 
   const features = [
     { icon: <Globe size={24} />, title: 'مواقع متعددة', desc: 'أنشئ عدداً غير محدود من المواقع الاحترافية' },
@@ -261,7 +263,7 @@ const LandingPage: React.FC = () => {
                 )}
                 <h3 className="text-lg font-semibold text-gray-800 mb-2">{p.name}</h3>
                 <div className="text-4xl font-bold text-gray-900 mb-6">
-                  {p.price}<span className="text-lg font-normal text-gray-500"> ر.س/شهر</span>
+                  {p.price}<span className="text-lg font-normal text-gray-500"> ج.م/شهر</span>
                 </div>
                 <ul className="space-y-3 mb-8">
                   {p.features.map((f, j) => (
@@ -284,42 +286,119 @@ const LandingPage: React.FC = () => {
       {showSubModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowSubModal(null)} />
-          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 animate-fade" style={{ direction: 'rtl' }}>
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 animate-fade" style={{ direction: 'rtl', maxHeight: '90vh', overflowY: 'auto' }}>
             <button onClick={() => setShowSubModal(null)} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 cursor-pointer border-none">
               <X size={20} />
             </button>
             <div className="text-center mb-6">
               <div className="text-5xl mb-4">{showSubModal === 'مجاني' ? '🎉' : '🌟'}</div>
               <h2 className="text-2xl font-bold text-gray-800 mb-2">باقة {showSubModal}</h2>
-              <p className="text-gray-500">اختر طريقة الدفع المناسبة لك</p>
+              <p className="text-gray-500">اختر طريقة الدفع</p>
             </div>
-            <div className="space-y-4">
-              <button onClick={() => { setShowSubModal(null); setCurrentPage('register'); }}
-                className="w-full py-4 px-6 bg-gradient-to-l from-indigo-500 to-purple-500 text-white rounded-2xl font-bold text-lg hover:opacity-90 transition-opacity cursor-pointer border-none flex items-center justify-center gap-3">
-                <CreditCard size={20} />
-                {showSubModal === 'مجاني' ? 'تسجيل حساب مجاني' : `دفع ${showSubModal === 'احترافي' ? '49' : '99'} ر.س عبر بطاقة ائتمان`}
-              </button>
-              <button onClick={() => { setShowSubModal(null); setCurrentPage('register'); }}
-                className="w-full py-4 px-6 bg-gradient-to-l from-emerald-500 to-teal-500 text-white rounded-2xl font-bold text-lg hover:opacity-90 transition-opacity cursor-pointer border-none flex items-center justify-center gap-3">
-                <Smartphone size={20} />
-                دفع عبر إنستا باي (01229938115)
-              </button>
-              <button onClick={() => { setShowSubModal(null); setCurrentPage('register'); }}
-                className="w-full py-4 px-6 bg-gradient-to-l from-orange-500 to-red-500 text-white rounded-2xl font-bold text-lg hover:opacity-90 transition-opacity cursor-pointer border-none flex items-center justify-center gap-3">
+
+            {currentUser && (
+              <div className="p-4 bg-indigo-50 rounded-2xl mb-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-indigo-600 font-medium">رصيد المحفظة</p>
+                  <p className="text-2xl font-bold text-indigo-800">{currentUser.wallet || 0} ج.م</p>
+                </div>
+                <button onClick={() => setShowWalletModal(true)} className="text-sm bg-indigo-500 text-white px-4 py-2 rounded-xl font-medium cursor-pointer border-none">
+                  شحن المحفظة
+                </button>
+              </div>
+            )}
+
+            {showSubModal !== 'مجاني' && currentUser && (
+              <button
+                onClick={() => {
+                  const price = showSubModal === 'احترافي' ? 49 : 99;
+                  if ((currentUser.wallet || 0) < price) {
+                    alert('رصيد المحفظة غير كافٍ. قم بشحن المحفظة أولاً.');
+                    return;
+                  }
+                  updateUserWallet(currentUser.id, -price);
+                  setUserPlan(currentUser.id, showSubModal === 'احترافي' ? 'professional' : 'business');
+                  addTransaction(currentUser.id, 'subscription', -price, `اشتراك باقة ${showSubModal}`);
+                  setShowSubModal(null);
+                  alert(`تم تفعيل باقة ${showSubModal} بنجاح!`);
+                }}
+                className="w-full py-4 px-6 bg-gradient-to-l from-indigo-500 to-purple-500 text-white rounded-2xl font-bold text-lg hover:opacity-90 transition-opacity cursor-pointer border-none flex items-center justify-center gap-3 mb-3"
+              >
                 <Wallet size={20} />
-                دفع عبر محفظة STC Pay
+                ادفع من المحفظة ({showSubModal === 'احترافي' ? '49' : '99'} ج.م)
               </button>
-              <button onClick={() => { setShowSubModal(null); setCurrentPage('register'); }}
-                className="w-full py-4 px-6 bg-gradient-to-l from-blue-500 to-cyan-500 text-white rounded-2xl font-bold text-lg hover:opacity-90 transition-opacity cursor-pointer border-none flex items-center justify-center gap-3">
-                <Building size={20} />
-                دفع عبر تحويل بنكي
-              </button>
+            )}
+
+            <div className="space-y-3">
+              {!currentUser && (
+                <button onClick={() => { setShowSubModal(null); setCurrentPage('register'); }}
+                  className="w-full py-4 px-6 bg-gradient-to-l from-indigo-500 to-purple-500 text-white rounded-2xl font-bold text-lg hover:opacity-90 transition-opacity cursor-pointer border-none flex items-center justify-center gap-3">
+                  <CreditCard size={20} />
+                  {showSubModal === 'مجاني' ? 'تسجيل حساب مجاني' : 'سجل حسابك أولاً'}
+                </button>
+              )}
+
+              {showSubModal !== 'مجاني' && (
+                <>
+                  <button onClick={() => {
+                    addTransaction(currentUser?.id || '', 'subscription', showSubModal === 'احترافي' ? 49 : 99, `طلب ترقية باقة ${showSubModal} - التحويل عبر إنستا باي`);
+                    setShowSubModal(null);
+                    alert('تم إرسال طلب الترقية. يرجى تحويل المبلغ عبر إنستا باي على الرقم 01229938115 وسيتم تفعيل الباقة بعد التأكيد من الإدارة.');
+                  }}
+                    className="w-full py-4 px-6 bg-gradient-to-l from-emerald-500 to-teal-500 text-white rounded-2xl font-bold text-lg hover:opacity-90 transition-opacity cursor-pointer border-none flex items-center justify-center gap-3">
+                    <Smartphone size={20} />
+                    دفع {showSubModal === 'احترافي' ? '49' : '99'} ج.م عبر إنستا باي
+                  </button>
+                  <button onClick={() => {
+                    addTransaction(currentUser?.id || '', 'subscription', showSubModal === 'احترافي' ? 49 : 99, `طلب ترقية باقة ${showSubModal} - تحويل بنكي`);
+                    setShowSubModal(null);
+                    alert('تم إرسال طلب الترقية. يرجى تحويل المبلغ إلى الحساب البنكي: البنك الأهلي المصري - حساب رقم 123456789 وسيتم تفعيل الباقة بعد التأكيد من الإدارة.');
+                  }}
+                    className="w-full py-4 px-6 bg-gradient-to-l from-orange-500 to-red-500 text-white rounded-2xl font-bold text-lg hover:opacity-90 transition-opacity cursor-pointer border-none flex items-center justify-center gap-3">
+                    <Building size={20} />
+                    تحويل بنكي
+                  </button>
+                </>
+              )}
             </div>
-            <div className="mt-6 p-4 bg-amber-50 rounded-2xl border border-amber-200">
+            <div className="mt-4 p-4 bg-amber-50 rounded-2xl border border-amber-200">
               <p className="text-sm text-amber-800 text-center">
-                🔒 جميع عمليات الدفع آمنة ومشفرة. سيتم تفعيل باقتك فور تأكيد الدفع.
+                🔒 بعد تأكيد الدفع، ستقوم الإدارة بتفعيل الباقة خلال 24 ساعة
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Wallet Top-up Modal */}
+      {showWalletModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowWalletModal(false)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 animate-fade" style={{ direction: 'rtl' }}>
+            <button onClick={() => setShowWalletModal(false)} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 cursor-pointer border-none">
+              <X size={20} />
+            </button>
+            <div className="text-center mb-6">
+              <div className="text-5xl mb-4">💰</div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">شحن المحفظة</h2>
+              <p className="text-gray-500">رصيدك الحالي: <strong>{currentUser?.wallet || 0} ج.م</strong></p>
+            </div>
+            <div className="form-group mb-4">
+              <label className="form-label">المبلغ المراد شحنه (ج.م)</label>
+              <input type="number" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} className="input" placeholder="مثال: 100" min="1" />
+            </div>
+            <p className="text-sm text-gray-500 mb-4 text-center">حول المبلغ على إنستا باي: <strong dir="ltr">01229938115</strong> ثم أرسل إيصال الدفع للإدارة</p>
+            <button onClick={() => {
+              const amount = parseInt(depositAmount);
+              if (!amount || amount <= 0) { alert('أدخل مبلغ صحيح'); return; }
+              if (!currentUser) { alert('سجل دخول أولاً'); return; }
+              addTransaction(currentUser.id, 'deposit', amount, `شحن محفظة بمبلغ ${amount} ج.م`);
+              setShowWalletModal(false);
+              setDepositAmount('');
+              alert('تم إرسال طلب الشحن. سيتم إضافة الرصيد إلى محفظتك بعد تأكيد الدفع من الإدارة.');
+            }} className="w-full py-4 px-6 bg-gradient-to-l from-emerald-500 to-teal-500 text-white rounded-2xl font-bold text-lg hover:opacity-90 transition-opacity cursor-pointer border-none">
+              تأكيد طلب الشحن
+            </button>
           </div>
         </div>
       )}

@@ -4,7 +4,7 @@ import { SiteTemplate, TemplateSection } from '../types';
 import { ArrowRight, ArrowLeft, Check } from 'lucide-react';
 
 const CreateSite: React.FC = () => {
-  const { templates, currentUser, createSite, setCurrentPage } = useApp();
+  const { templates, currentUser, createSite, setCurrentPage, canCreateMoreSites } = useApp();
   const [step, setStep] = useState(1);
   const [selectedTemplate, setSelectedTemplate] = useState<SiteTemplate | null>(null);
   const [siteName, setSiteName] = useState('');
@@ -32,6 +32,7 @@ const CreateSite: React.FC = () => {
 
   const handleCreate = () => {
     if (!currentUser || !selectedTemplate || !siteName || !siteSlug) return;
+    if (!canCreateMoreSites()) { alert('لقد تجاوزت الحد المسموح من المواقع. قم بالترقية إلى باقة احترافية لإنشاء المزيد.'); return; }
     const slug = siteSlug.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
 
     createSite({
@@ -54,7 +55,7 @@ const CreateSite: React.FC = () => {
       contactMessages: [],
       settings: {
         showHeader: true, showFooter: true, showContactForm: true, enableDarkMode: false,
-        enableCart: true, enableOrders: true, currency: 'ر.س',
+        enableCart: true, enableOrders: true, currency: 'ج.م',
         seoTitle: siteName, seoDescription: description,
         socialLinks: { facebook: '', twitter: '', instagram: '', whatsapp: '', tiktok: '', youtube: '' },
         contactEmail: currentUser.email, contactPhone: '', address: '',

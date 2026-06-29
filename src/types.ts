@@ -1,3 +1,10 @@
+export type Plan = 'free' | 'professional' | 'business';
+export const PLAN_LIMITS: Record<Plan, { maxSites: number; price: number; label: string }> = {
+  free: { maxSites: 1, price: 0, label: 'مجاني' },
+  professional: { maxSites: 5, price: 49, label: 'احترافي' },
+  business: { maxSites: Infinity, price: 99, label: 'أعمال' },
+};
+
 export interface User {
   id: string;
   name: string;
@@ -5,6 +12,8 @@ export interface User {
   password: string;
   createdAt: string;
   lastLogin?: string;
+  plan: Plan;
+  wallet: number;
 }
 
 export interface SiteTemplate {
@@ -167,6 +176,16 @@ export interface ContactMessage {
   message: string;
   createdAt: string;
   read: boolean;
+}
+
+export interface Transaction {
+  id: string;
+  userId: string;
+  type: 'deposit' | 'subscription' | 'withdrawal';
+  amount: number;
+  note: string;
+  createdAt: string;
+  confirmed: boolean;
 }
 
 export type Page = 'landing' | 'login' | 'register' | 'dashboard' | 'create-site' | 'edit-site' | 'site-settings' | 'analytics' | 'admin' | 'view-site' | 'admin-login' | 'products' | 'orders' | 'discounts' | 'profile';

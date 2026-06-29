@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useApp } from '../store';
-import { DailyAnalytics } from '../types';
-import { LogOut, Users, Globe, BarChart3, Trash2, Eye, Search, Activity } from 'lucide-react';
+import { DailyAnalytics, PLAN_LIMITS, Plan } from '../types';
+import { LogOut, Users, Globe, BarChart3, Trash2, Eye, Search, Activity, Wallet, ShieldCheck, Check, X, DollarSign } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const AdminPanel: React.FC = () => {
-  const { users, sites, deleteUser, deleteSite, getAllAnalytics, logout, setViewingSiteSlug, setCurrentPage } = useApp();
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'sites' | 'analytics'>('overview');
+  const { users, sites, deleteUser, deleteSite, getAllAnalytics, logout, setViewingSiteSlug, setCurrentPage, updateUserWallet, setUserPlan, addTransaction, getAllTransactions, confirmTransaction, deleteTransaction } = useApp();
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'sites' | 'analytics' | 'plans' | 'transactions'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   
   const analytics = getAllAnalytics();
@@ -51,6 +51,8 @@ const AdminPanel: React.FC = () => {
             { id: 'overview' as const, label: 'نظرة عامة', icon: <BarChart3 size={16} /> },
             { id: 'users' as const, label: 'المستخدمون', icon: <Users size={16} /> },
             { id: 'sites' as const, label: 'المواقع', icon: <Globe size={16} /> },
+            { id: 'plans' as const, label: 'الباقات والرصيد', icon: <ShieldCheck size={16} /> },
+            { id: 'transactions' as const, label: 'المعاملات', icon: <Wallet size={16} /> },
             { id: 'analytics' as const, label: 'التحليلات', icon: <Activity size={16} /> },
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`tab ${activeTab === tab.id ? 'active' : ''}`}>
@@ -184,6 +186,8 @@ const AdminPanel: React.FC = () => {
                     <tr>
                       <th>المستخدم</th>
                       <th>البريد</th>
+                      <th>الخطة</th>
+                      <th>المحفظة</th>
                       <th>التاريخ</th>
                       <th>المواقع</th>
                       <th></th>
@@ -201,6 +205,12 @@ const AdminPanel: React.FC = () => {
                           </div>
                         </td>
                         <td dir="ltr">{user.email}</td>
+                        <td>
+                          <span className={`badge ${user.plan === 'free' ? 'badge-warning' : user.plan === 'professional' ? 'badge-info' : 'badge-success'}`}>
+                            {PLAN_LIMITS[user.plan || 'free'].label}
+                          </span>
+                        </td>
+                        <td><span className="font-bold text-emerald-600">{user.wallet || 0} ج.م</span></td>
                         <td>{new Date(user.createdAt).toLocaleDateString('ar-EG')}</td>
                         <td><span className="badge badge-info">{sites.filter(s => s.userId === user.id).length}</span></td>
                         <td>
@@ -317,6 +327,209 @@ const AdminPanel: React.FC = () => {
                 </ResponsiveContainer>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Plans & Wallet */}
+        {activeTab === 'plans' && (
+          <div className="animate-fade">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-800">إدارة الباقات والمحافظ</h2>
+              <div className="input-icon w-64">
+                <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="input" placeholder="بحث..." />
+                <Search size={18} />
+              </div>
+            </div>
+
+            <div className="card-flat overflow-hidden mb-8">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>المستخدم</th>
+                    <th>البريد</th>
+                    <th>الخطة الحالية</th>
+                    <th>المواقع</th>
+                    <th>رصيد المحفظة</th>
+                    <th>تغيير الخطة</th>
+                    <th>المحفظة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase())).map(user => {
+                    const userSites = sites.filter(s => s.userId === user.id);
+                    const limit = PLAN_LIMITS[user.plan || 'free'].maxSites;
+                    const limitLabel = limit === Infinity ? 'غير محدود' : `${limit}`;
+                    return (
+                      <tr key={user.id}>
+                        <td>
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-semibold">
+                              {user.name[0]}
+                            </div>
+                            <span className="font-medium">{user.name}</span>
+                          </div>
+                        </td>
+                        <td dir="ltr">{user.email}</td>
+                        <td>
+                          <span className={`badge ${user.plan === 'free' ? 'badge-warning' : user.plan === 'professional' ? 'badge-info' : 'badge-success'}`}>
+                            {PLAN_LIMITS[user.plan || 'free'].label}
+                          </span>
+                        </td>
+                        <td>{userSites.length} / {limitLabel}</td>
+                        <td>
+                          <span className="font-bold text-emerald-600">{user.wallet || 0} ج.م</span>
+                        </td>
+                        <td>
+                          <select
+                            value={user.plan || 'free'}
+                            onChange={(e) => {
+                              const plan = e.target.value as Plan;
+                              if (confirm(`تأكيد تغيير خطة ${user.name} إلى ${PLAN_LIMITS[plan].label}؟`)) {
+                                setUserPlan(user.id, plan);
+                              }
+                            }}
+                            className="input text-sm"
+                            style={{ padding: '6px 12px', minWidth: '100px' }}
+                          >
+                            <option value="free">مجاني</option>
+                            <option value="professional">احترافي</option>
+                            <option value="business">أعمال</option>
+                          </select>
+                        </td>
+                        <td>
+                          <div className="flex gap-2">
+                            <button onClick={() => {
+                              const amt = prompt('أدخل المبلغ لإضافته للمحفظة (ج.م):', '100');
+                              if (amt) {
+                                const num = parseInt(amt);
+                                if (num > 0) {
+                                  updateUserWallet(user.id, num);
+                                  addTransaction(user.id, 'deposit', num, `شحن رصيد بواسطة الإدارة: ${num} ج.م`);
+                                }
+                              }
+                            }} className="btn btn-primary btn-sm"><DollarSign size={14} /> إضافة رصيد</button>
+                            <button onClick={() => {
+                              if (user.wallet > 0) {
+                                const amt = prompt('أدخل المبلغ للخصم من المحفظة (ج.م):', String(user.wallet));
+                                if (amt) {
+                                  const num = parseInt(amt);
+                                  if (num > 0 && num <= user.wallet) {
+                                    updateUserWallet(user.id, -num);
+                                    addTransaction(user.id, 'withdrawal', -num, `خصم بواسطة الإدارة: ${num} ج.م`);
+                                  }
+                                }
+                              } else {
+                                alert('رصيد المحفظة صفر');
+                              }
+                            }} className="btn btn-danger btn-sm"><X size={14} /> خصم</button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="card p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">إحصائيات الباقات</h3>
+              <div className="grid-3">
+                {(['free', 'professional', 'business'] as Plan[]).map(p => {
+                  const count = users.filter(u => (u.plan || 'free') === p).length;
+                  return (
+                    <div key={p} className="p-4 bg-gray-50 rounded-xl text-center">
+                      <div className="text-3xl mb-2">{p === 'free' ? '🆓' : p === 'professional' ? '⭐' : '👑'}</div>
+                      <div className="text-2xl font-bold text-gray-800">{count}</div>
+                      <div className="text-sm text-gray-500">{PLAN_LIMITS[p].label}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Transactions */}
+        {activeTab === 'transactions' && (
+          <div className="animate-fade">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-800">المعاملات المالية</h2>
+              <span className="text-sm text-gray-500">{getAllTransactions().length} معاملة</span>
+            </div>
+
+            {getAllTransactions().length === 0 ? (
+              <div className="card empty-state">
+                <div className="icon">📭</div>
+                <h3 className="title">لا توجد معاملات</h3>
+              </div>
+            ) : (
+              <div className="card-flat overflow-hidden">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>المستخدم</th>
+                      <th>النوع</th>
+                      <th>المبلغ</th>
+                      <th>ملاحظات</th>
+                      <th>التاريخ</th>
+                      <th>الحالة</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {getAllTransactions().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(tx => {
+                      const user = users.find(u => u.id === tx.userId);
+                      return (
+                        <tr key={tx.id}>
+                          <td>
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-semibold">
+                                {user?.name?.[0] || '?'}
+                              </div>
+                              <span className="text-sm">{user?.name || 'مستخدم محذوف'}</span>
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`badge ${tx.type === 'deposit' ? 'badge-success' : tx.type === 'subscription' ? 'badge-info' : 'badge-warning'}`}>
+                              {tx.type === 'deposit' ? 'شحن' : tx.type === 'subscription' ? 'اشتراك' : 'سحب'}
+                            </span>
+                          </td>
+                          <td className={`font-bold ${tx.amount > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {tx.amount > 0 ? '+' : ''}{tx.amount} ج.م
+                          </td>
+                          <td className="text-sm text-gray-600 max-w-[200px] truncate">{tx.note}</td>
+                          <td className="text-sm text-gray-500">{new Date(tx.createdAt).toLocaleDateString('ar-EG')}</td>
+                          <td>
+                            {tx.confirmed ? (
+                              <span className="badge badge-success">مؤكد</span>
+                            ) : (
+                              <span className="badge badge-warning">قيد الانتظار</span>
+                            )}
+                          </td>
+                          <td>
+                            {!tx.confirmed && (
+                              <div className="flex gap-2">
+                                <button onClick={() => {
+                                  if (confirm('تأكيد هذه المعاملة؟')) {
+                                    confirmTransaction(tx.id);
+                                    alert('تم تأكيد المعاملة بنجاح!');
+                                  }
+                                }} className="btn btn-success btn-sm"><Check size={14} /> تأكيد</button>
+                                <button onClick={() => {
+                                  if (confirm('حذف هذه المعاملة؟')) {
+                                    deleteTransaction(tx.id);
+                                  }
+                                }} className="btn btn-danger btn-sm"><Trash2 size={14} /> رفض</button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>
