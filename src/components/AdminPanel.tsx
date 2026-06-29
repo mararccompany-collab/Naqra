@@ -8,6 +8,7 @@ const AdminPanel: React.FC = () => {
   const { users, sites, deleteUser, deleteSite, getAllAnalytics, logout, setViewingSiteSlug, setCurrentPage, updateUserWallet, setUserPlan, addTransaction, getAllTransactions, confirmTransaction, deleteTransaction } = useApp();
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'sites' | 'analytics' | 'plans' | 'transactions'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
+  const pendingTxCount = getAllTransactions().filter(t => !t.confirmed).length;
   
   const analytics = getAllAnalytics();
   const totalVisitors = analytics.reduce((acc: number, d: DailyAnalytics) => acc + d.visitors, 0);
@@ -51,12 +52,17 @@ const AdminPanel: React.FC = () => {
             { id: 'overview' as const, label: 'نظرة عامة', icon: <BarChart3 size={16} /> },
             { id: 'users' as const, label: 'المستخدمون', icon: <Users size={16} /> },
             { id: 'sites' as const, label: 'المواقع', icon: <Globe size={16} /> },
-            { id: 'plans' as const, label: 'الباقات والرصيد', icon: <ShieldCheck size={16} /> },
-            { id: 'transactions' as const, label: 'المعاملات', icon: <Wallet size={16} /> },
+            { id: 'plans' as const, label: 'الباقات والرصيد', icon: <ShieldCheck size={16} />, badge: users.filter(u => (u.plan || 'free') === 'free' && sites.filter(s => s.userId === u.id).length > 0).length },
+            { id: 'transactions' as const, label: 'المعاملات', icon: <Wallet size={16} />, badge: pendingTxCount },
             { id: 'analytics' as const, label: 'التحليلات', icon: <Activity size={16} /> },
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`tab ${activeTab === tab.id ? 'active' : ''}`}>
               {tab.icon} {tab.label}
+              {(tab as any).badge > 0 && (
+                <span className="mr-1.5 px-1.5 py-0.5 text-[10px] font-bold rounded-full" style={{ background: tab.id === 'transactions' ? '#ef4444' : '#f59e0b', color: 'white', lineHeight: '1' }}>
+                  {(tab as any).badge}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -340,6 +346,32 @@ const AdminPanel: React.FC = () => {
                 <Search size={18} />
               </div>
             </div>
+
+            {pendingTxCount > 0 && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-500 flex-shrink-0">🔔</div>
+                <div>
+                  <p className="font-semibold text-red-800">طلبات ترقية وشحن في انتظار المراجعة</p>
+                  <p className="text-sm text-red-600">لديك {pendingTxCount} معاملة قيد الانتظار. انتقل إلى تبويب "المعاملات" لتأكيدها</p>
+                </div>
+                <button onClick={() => setActiveTab('transactions')} className="mr-auto btn btn-sm bg-red-500 text-white hover:bg-red-600 border-none">
+                  عرض المعاملات
+                </button>
+              </div>
+            )}
+            {(() => {
+              const freeWithSites = users.filter(u => (u.plan || 'free') === 'free' && sites.filter(s => s.userId === u.id).length > 0).length;
+              if (freeWithSites > 0) return (
+                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-500 flex-shrink-0">💡</div>
+                  <div>
+                    <p className="font-semibold text-amber-800">عملاء محتملون للترقية</p>
+                    <p className="text-sm text-amber-600">{freeWithSites} عميل في الباقة المجانية لديهم مواقع نشطة — يمكنك عرض الترقية عليهم</p>
+                  </div>
+                </div>
+              );
+              return null;
+            })()}
 
             <div className="card-flat overflow-hidden mb-8">
               <table className="table">

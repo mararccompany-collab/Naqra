@@ -1,16 +1,15 @@
 import React from 'react';
 import { useApp } from '../store';
-import { Plus, Globe, Edit3, Trash2, Eye, Settings, BarChart3, LogOut, ExternalLink, Package, Copy, Check, CopyPlus, DollarSign, MessageCircle, User } from 'lucide-react';
+import { PLAN_LIMITS } from '../types';
+import { Plus, Globe, Edit3, Trash2, Eye, Settings, BarChart3, LogOut, ExternalLink, Copy, Check, CopyPlus, User, Wallet, ShieldCheck } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const { currentUser, getUserSites, setCurrentPage, setEditingSite, setViewingSiteSlug, deleteSite, duplicateSite, logout } = useApp();
   const userSites = getUserSites();
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
   
-  const totalVisits = userSites.reduce((acc, s) => acc + (s.visits?.length || 0), 0);
-  const totalProducts = userSites.reduce((acc, s) => acc + (s.products?.length || 0), 0);
-  const totalOrders = userSites.reduce((acc, s) => acc + (s.orders?.length || 0), 0);
-  const totalMessages = userSites.reduce((acc, s) => acc + (s.contactMessages?.filter(m => !m.read)?.length || 0), 0);
+  const planInfo = PLAN_LIMITS[currentUser?.plan || 'free'];
+  const planLimit = planInfo.maxSites === Infinity ? 'غير محدود' : `${planInfo.maxSites}`;
 
   const { getSiteUrl } = useApp();
   const copyLink = (slug: string, id: string) => {
@@ -56,12 +55,12 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-10">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
           <div className="stat-card">
             <div className="icon" style={{ background: 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)' }}>
               <Globe size={22} className="text-indigo-500" />
             </div>
-            <div className="value">{userSites.length}</div>
+            <div className="value">{userSites.length} / {planLimit}</div>
             <div className="label">المواقع</div>
           </div>
           <div className="stat-card">
@@ -72,32 +71,18 @@ const Dashboard: React.FC = () => {
             <div className="label">منشور</div>
           </div>
           <div className="stat-card">
-            <div className="icon" style={{ background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' }}>
-              <Package size={22} className="text-amber-500" />
-            </div>
-            <div className="value">{totalProducts}</div>
-            <div className="label">المنتجات</div>
-          </div>
-          <div className="stat-card">
-            <div className="icon" style={{ background: 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)' }}>
-              <DollarSign size={22} className="text-sky-500" />
-            </div>
-            <div className="value">{totalOrders}</div>
-            <div className="label">الطلبات</div>
-          </div>
-          <div className="stat-card">
-            <div className="icon" style={{ background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' }}>
-              <MessageCircle size={22} className="text-amber-500" />
-            </div>
-            <div className="value">{totalMessages}</div>
-            <div className="label">غير مقروءة</div>
-          </div>
-          <div className="stat-card">
             <div className="icon" style={{ background: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)' }}>
-              <BarChart3 size={22} className="text-pink-500" />
+              <Wallet size={22} className="text-pink-500" />
             </div>
-            <div className="value">{totalVisits}</div>
-            <div className="label">الزيارات</div>
+            <div className="value">{currentUser?.wallet || 0} ج.م</div>
+            <div className="label">رصيد المحفظة</div>
+          </div>
+          <div className="stat-card">
+            <div className="icon" style={{ background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' }}>
+              <ShieldCheck size={22} className="text-amber-500" />
+            </div>
+            <div className="value">{planInfo.label}</div>
+            <div className="label">الباقة الحالية</div>
           </div>
         </div>
 

@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { useApp } from '../store';
-import { Save, Check, Lock, Globe, LogOut, Edit3, Settings, ExternalLink } from 'lucide-react';
+import { PLAN_LIMITS } from '../types';
+import { Save, Check, Lock, Globe, LogOut, Edit3, Settings, ExternalLink, Wallet, ShieldCheck, ArrowUp, ArrowDown, Clock } from 'lucide-react';
 
 const UserProfile: React.FC = () => {
-  const { currentUser, updateUserProfile, updateUserPassword, getUserSites, setCurrentPage, setEditingSite, setViewingSiteSlug, logout } = useApp();
+  const { currentUser, updateUserProfile, updateUserPassword, getUserSites, setCurrentPage, setEditingSite, setViewingSiteSlug, logout, getTransactions } = useApp();
   const userSites = getUserSites();
+  const planInfo = PLAN_LIMITS[currentUser?.plan || 'free'];
+  const planLimit = planInfo.maxSites === Infinity ? 'غير محدود' : `${planInfo.maxSites}`;
+  const txHistory = currentUser ? getTransactions(currentUser.id).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) : [];
 
   const [name, setName] = useState(currentUser?.name || '');
   const [email, setEmail] = useState(currentUser?.email || '');
@@ -118,6 +122,73 @@ const UserProfile: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {/* Wallet & Plan */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="card p-6">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-100 to-green-100 flex items-center justify-center">
+                <Wallet size={24} className="text-emerald-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800">رصيد المحفظة</h3>
+                <p className="text-2xl font-bold text-emerald-600">{currentUser.wallet || 0} ج.م</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setCurrentPage('landing')} className="btn btn-primary btn-sm flex-1">شحن المحفظة</button>
+            </div>
+          </div>
+          <div className="card p-6">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-100 to-yellow-100 flex items-center justify-center">
+                <ShieldCheck size={24} className="text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800">الباقة الحالية</h3>
+                <p className="text-2xl font-bold text-amber-600">{planInfo.label}</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-sm text-gray-500">حد المواقع: {userSites.length}/{planLimit}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Transactions */}
+        {txHistory.length > 0 && (
+          <div className="card p-6 mb-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Clock size={20} className="text-gray-500" />
+              <h3 className="text-lg font-semibold text-gray-800">سجل المعاملات المالية</h3>
+            </div>
+            <div className="space-y-2">
+              {txHistory.slice(0, 10).map(tx => (
+                <div key={tx.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tx.type === 'deposit' ? 'bg-emerald-100' : tx.type === 'subscription' ? 'bg-blue-100' : 'bg-red-100'}`}>
+                      {tx.type === 'deposit' ? <ArrowDown size={18} className="text-emerald-600" /> : <ArrowUp size={18} className="text-red-500" />}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">{tx.note}</p>
+                      <p className="text-xs text-gray-400">{new Date(tx.createdAt).toLocaleDateString('ar-EG')}</p>
+                    </div>
+                  </div>
+                  <div className="text-left">
+                    <span className={`font-bold ${tx.amount > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {tx.amount > 0 ? '+' : ''}{tx.amount} ج.م
+                    </span>
+                    <div>
+                      <span className={`text-xs ${tx.confirmed ? 'text-green-600' : 'text-amber-600'}`}>
+                        {tx.confirmed ? 'مؤكد' : 'قيد الانتظار'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* User Stats */}
         <div className="grid grid-cols-4 gap-4 mb-6">

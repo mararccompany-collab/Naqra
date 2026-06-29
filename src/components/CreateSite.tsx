@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../store';
-import { SiteTemplate, TemplateSection } from '../types';
-import { ArrowRight, ArrowLeft, Check } from 'lucide-react';
+import { SiteTemplate, TemplateSection, PLAN_LIMITS } from '../types';
+import { ArrowRight, ArrowLeft, Check, X, Crown, Star } from 'lucide-react';
 
 const CreateSite: React.FC = () => {
   const { templates, currentUser, createSite, setCurrentPage, canCreateMoreSites } = useApp();
@@ -16,6 +16,7 @@ const CreateSite: React.FC = () => {
   const [fontFamily, setFontFamily] = useState('Cairo');
   const [sections, setSections] = useState<TemplateSection[]>([]);
   const [isPublished, setIsPublished] = useState(true);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const handleTemplateSelect = (template: SiteTemplate) => {
     setSelectedTemplate(template);
@@ -32,7 +33,7 @@ const CreateSite: React.FC = () => {
 
   const handleCreate = () => {
     if (!currentUser || !selectedTemplate || !siteName || !siteSlug) return;
-    if (!canCreateMoreSites()) { alert('لقد تجاوزت الحد المسموح من المواقع. قم بالترقية إلى باقة احترافية لإنشاء المزيد.'); return; }
+    if (!canCreateMoreSites()) { setShowUpgradeModal(true); return; }
     const slug = siteSlug.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
 
     createSite({
@@ -316,6 +317,51 @@ const CreateSite: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Upgrade Modal */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowUpgradeModal(false)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg p-8 animate-fade" style={{ direction: 'rtl', maxHeight: '90vh', overflowY: 'auto' }}>
+            <button onClick={() => setShowUpgradeModal(false)} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 cursor-pointer border-none">
+              <X size={20} />
+            </button>
+            <div className="text-center mb-8">
+              <div className="text-6xl mb-4">🚀</div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">لقد وصلت للحد الأقصى!</h2>
+              <p className="text-gray-500">باقتك الحالية {PLAN_LIMITS[currentUser?.plan || 'free'].label} تسمح لك بإنشاء {PLAN_LIMITS[currentUser?.plan || 'free'].maxSites === Infinity ? 'عدد غير محدود' : `موقع${PLAN_LIMITS[currentUser?.plan || 'free'].maxSites > 1 ? ' واحد فقط' : ''}`} من المواقع</p>
+              <p className="text-gray-500 mt-1">قم بالترقية إلى باقة أعلى لإنشاء المزيد من المواقع</p>
+            </div>
+
+            <div className="space-y-4">
+              <div onClick={() => { setShowUpgradeModal(false); setCurrentPage('landing'); }} className="p-4 bg-gradient-to-l from-amber-50 to-yellow-50 rounded-2xl border-2 border-amber-200 cursor-pointer hover:shadow-lg transition-all">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <Star size={24} className="text-amber-500" />
+                    <span className="font-bold text-lg text-gray-800">الباقة الاحترافية</span>
+                  </div>
+                  <span className="text-2xl font-bold text-amber-600">49 ج.م<span className="text-sm font-normal text-gray-500">/شهر</span></span>
+                </div>
+                <p className="text-sm text-gray-600 mr-9">5 مواقع + تحليلات متقدمة + دعم أولوية</p>
+              </div>
+              <div onClick={() => { setShowUpgradeModal(false); setCurrentPage('landing'); }} className="p-4 bg-gradient-to-l from-purple-50 to-indigo-50 rounded-2xl border-2 border-purple-200 cursor-pointer hover:shadow-lg transition-all">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <Crown size={24} className="text-purple-500" />
+                    <span className="font-bold text-lg text-gray-800">باقة الأعمال</span>
+                  </div>
+                  <span className="text-2xl font-bold text-purple-600">99 ج.م<span className="text-sm font-normal text-gray-500">/شهر</span></span>
+                </div>
+                <p className="text-sm text-gray-600 mr-9">مواقع غير محدودة + API كامل + دعم مخصص</p>
+              </div>
+            </div>
+
+            <button onClick={() => { setShowUpgradeModal(false); setCurrentPage('dashboard'); }} className="w-full mt-6 py-3 border-2 border-gray-200 rounded-2xl font-medium text-gray-600 hover:bg-gray-50 cursor-pointer bg-white">
+              العودة للوحة التحكم
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
