@@ -9,6 +9,7 @@ import SiteSettings from './components/SiteSettings';
 import Analytics from './components/Analytics';
 import AdminPanel from './components/AdminPanel';
 import SiteViewer from './components/SiteViewer';
+import UserProfile from './components/UserProfile';
 
 const AppContent: React.FC = () => {
   const { currentPage } = useApp();
@@ -23,6 +24,7 @@ const AppContent: React.FC = () => {
     case 'site-settings': return <SiteSettings />;
     case 'analytics': return <Analytics />;
     case 'admin': return <AdminPanel />;
+    case 'profile': return <UserProfile />;
     default: return <LandingPage />;
   }
 };

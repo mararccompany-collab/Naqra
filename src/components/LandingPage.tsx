@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../store';
-import { ArrowLeft, Globe, Zap, Shield, Palette, BarChart3, Users, Check, Star } from 'lucide-react';
+import { ArrowLeft, Globe, Zap, Shield, Palette, BarChart3, Users, Check, Star, ShoppingCart, X, CreditCard, Smartphone, Wallet, Building } from 'lucide-react';
 
 const LandingPage: React.FC = () => {
   const { setCurrentPage } = useApp();
+  const [showSubModal, setShowSubModal] = useState<string | null>(null);
 
   const features = [
     { icon: <Globe size={24} />, title: 'مواقع متعددة', desc: 'أنشئ عدداً غير محدود من المواقع الاحترافية' },
@@ -21,6 +22,29 @@ const LandingPage: React.FC = () => {
     { emoji: '📝', name: 'مدونة', desc: 'للمحتوى والمقالات' },
     { emoji: '🍽️', name: 'مطعم', desc: 'للمطاعم والكافيهات' },
     { emoji: '🚀', name: 'صفحة هبوط', desc: 'للحملات التسويقية' },
+  ];
+
+  const platformFeatures = [
+    { icon: '📨', title: 'نظام الرسائل', desc: 'استقبل رسائل الزوار وأرسل ردوداً فورية' },
+    { icon: '💬', title: 'واتساب عائم', desc: 'زر واتساب يظهر في موقعك للتواصل المباشر' },
+    { icon: '🔍', title: 'بحث ذكي', desc: 'ابحث في المنتجات بسرعة وسهولة' },
+    { icon: '📥', title: 'تصدير CSV', desc: 'حمّل طلباتك كملف Excel بضغطة زر' },
+    { icon: '🔎', title: 'فلترة الطلبات', desc: 'صنّف الطلبات حسب الحالة وعرضها' },
+    { icon: '📱', title: 'إشعارات توست', desc: 'تنبيهات منبثقة أنيقة بدون DOM manipulation' },
+    { icon: '🎠', title: 'معرض صور', desc: 'عرض صور مع تكبير بتقنية Lightbox' },
+    { icon: '❓', title: 'أسئلة شائعة', desc: 'قسم FAQ بأكورديون تفاعلي' },
+    { icon: '👥', title: 'فريق العمل', desc: 'عرض أعضاء فريقك ببطاقات احترافية' },
+    { icon: '📊', title: 'إحصائيات', desc: 'عرض إحصائيات وأرقام موقعك' },
+    { icon: '💲', title: 'باقات الأسعار', desc: 'جدول أسعار احترافي لباقاتك' },
+    { icon: '🍪', title: 'موافقة الكوكيز', desc: 'شريط موافقة cookies للامتثال للقوانين' },
+    { icon: '⬆️', title: 'زر العودة للأعلى', desc: 'زر عائم للعودة لأعلى الصفحة' },
+    { icon: '📢', title: 'شريط إعلانات', desc: 'إعلانات منبثقة في أعلى الموقع' },
+    { icon: '🕐', title: 'ساعات العمل', desc: 'عرض أوقات العمل في قسم التواصل' },
+    { icon: '🗺️', title: 'خرائط جوجل', desc: 'تضمين خريطة الموقع في قسم التواصل' },
+    { icon: '📋', title: 'نسخ الموقع', desc: 'أنشئ نسخة كاملة من موقعك الحالي' },
+    { icon: '🔄', title: 'ترتيب المنتجات', desc: 'رتب المنتجات حسب السعر والاسم' },
+    { icon: '📤', title: 'مشاركة الموقع', desc: 'زر مشاركة للموقع عبر وسائل التواصل' },
+    { icon: '✨', title: 'ظهور متدرج', desc: 'أنيميشن ظهور Smooth عند التمرير' },
   ];
 
   const testimonials = [
@@ -75,6 +99,50 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
+      {/* Live Demo Preview */}
+      <section className="section" style={{ background: 'linear-gradient(180deg, #f8fafc, #ffffff)', overflow: 'hidden' }}>
+        <div className="container text-center">
+          <h2 className="section-title">شاهد موقعك مباشراً</h2>
+          <p className="section-subtitle">معاينة حية للموقع الذي ستنشئه مع كل المميزات</p>
+          <div className="card-flat p-4 max-w-4xl mx-auto overflow-hidden" style={{ boxShadow: '0 30px 60px rgba(0,0,0,0.12)' }}>
+            <div style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', padding: '12px 20px', borderRadius: '12px 12px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ color: 'white', fontWeight: 700, fontSize: '18px' }}>متجري الإلكتروني</span>
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>📦 3 منتجات</span>
+                <ShoppingCart size={18} color="white" />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', padding: '16px' }}>
+              {[
+                { emoji: '👟', name: 'حذاء رياضي', price: '149 ر.س' },
+                { emoji: '👕', name: 'تيشيرت قطني', price: '79 ر.س' },
+                { emoji: '🎒', name: 'حقيبة يد', price: '199 ر.س' },
+              ].map((p, i) => (
+                <div key={i} className="animate-slide" style={{ animationDelay: `${i * 0.1}s`, background: '#f8fafc', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '48px', marginBottom: '8px' }}>{p.emoji}</div>
+                  <div style={{ fontWeight: 600, fontSize: '15px', color: '#1e293b' }}>{p.name}</div>
+                  <div style={{ color: '#6366f1', fontWeight: 700, fontSize: '14px', margin: '8px 0' }}>{p.price}</div>
+                  <button style={{ background: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', width: '100%' }}>
+                    🛒 أضف للسلة
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div style={{ padding: '8px 16px 16px', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span style={{ background: '#eef2ff', color: '#6366f1', borderRadius: '20px', padding: '4px 12px', fontSize: '12px' }}>💬 واتساب</span>
+                <span style={{ background: '#eef2ff', color: '#6366f1', borderRadius: '20px', padding: '4px 12px', fontSize: '12px' }}>📨 تواصل</span>
+                <span style={{ background: '#eef2ff', color: '#6366f1', borderRadius: '20px', padding: '4px 12px', fontSize: '12px' }}>🔍 بحث</span>
+              </div>
+              <span style={{ fontSize: '12px', color: '#94a3b8' }}>⬆️ العودة للأعلى</span>
+            </div>
+          </div>
+          <button onClick={() => setCurrentPage('register')} className="btn btn-primary btn-lg mt-8">
+            أنشئ موقعك الآن 
+          </button>
+        </div>
+      </section>
+
       {/* Templates */}
       <section className="section" style={{ background: '#f8fafc' }}>
         <div className="container">
@@ -103,6 +171,23 @@ const LandingPage: React.FC = () => {
             {features.map((f, i) => (
               <div key={i} className="feature-card animate-slide" style={{ animationDelay: `${i * 0.1}s` }}>
                 <div className="icon">{f.icon}</div>
+                <h3>{f.title}</h3>
+                <p>{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* All Platform Features */}
+      <section className="section" style={{ background: '#ffffff' }}>
+        <div className="container">
+          <h2 className="section-title">كل مميزات المنصة</h2>
+          <p className="section-subtitle">أكثر من 20 ميزة احترافية لتجعل موقعك متميزاً</p>
+          <div className="grid-3">
+            {platformFeatures.map((f, i) => (
+              <div key={i} className="feature-card animate-slide" style={{ animationDelay: `${i * 0.05}s` }}>
+                <div className="icon" style={{ fontSize: '24px' }}>{f.icon}</div>
                 <h3>{f.title}</h3>
                 <p>{f.desc}</p>
               </div>
@@ -186,14 +271,58 @@ const LandingPage: React.FC = () => {
                     </li>
                   ))}
                 </ul>
-                <button onClick={() => setCurrentPage('register')} className={`btn w-full ${p.popular ? 'btn-primary' : 'btn-secondary'}`}>
-                  ابدأ الآن
+                <button onClick={() => setShowSubModal(p.name)} className={`btn w-full ${p.popular ? 'btn-primary' : 'btn-secondary'}`}>
+                  {p.price === '0' ? 'ابدأ مجاناً' : 'اشترك الآن'}
                 </button>
               </div>
             ))}
           </div>
         </div>
       </section>
+
+      {/* Subscription Modal */}
+      {showSubModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowSubModal(null)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 animate-fade" style={{ direction: 'rtl' }}>
+            <button onClick={() => setShowSubModal(null)} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 cursor-pointer border-none">
+              <X size={20} />
+            </button>
+            <div className="text-center mb-6">
+              <div className="text-5xl mb-4">{showSubModal === 'مجاني' ? '🎉' : '🌟'}</div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">باقة {showSubModal}</h2>
+              <p className="text-gray-500">اختر طريقة الدفع المناسبة لك</p>
+            </div>
+            <div className="space-y-4">
+              <button onClick={() => { setShowSubModal(null); setCurrentPage('register'); }}
+                className="w-full py-4 px-6 bg-gradient-to-l from-indigo-500 to-purple-500 text-white rounded-2xl font-bold text-lg hover:opacity-90 transition-opacity cursor-pointer border-none flex items-center justify-center gap-3">
+                <CreditCard size={20} />
+                {showSubModal === 'مجاني' ? 'تسجيل حساب مجاني' : `دفع ${showSubModal === 'احترافي' ? '49' : '99'} ر.س عبر بطاقة ائتمان`}
+              </button>
+              <button onClick={() => { setShowSubModal(null); setCurrentPage('register'); }}
+                className="w-full py-4 px-6 bg-gradient-to-l from-emerald-500 to-teal-500 text-white rounded-2xl font-bold text-lg hover:opacity-90 transition-opacity cursor-pointer border-none flex items-center justify-center gap-3">
+                <Smartphone size={20} />
+                دفع عبر إنستا باي (01229938115)
+              </button>
+              <button onClick={() => { setShowSubModal(null); setCurrentPage('register'); }}
+                className="w-full py-4 px-6 bg-gradient-to-l from-orange-500 to-red-500 text-white rounded-2xl font-bold text-lg hover:opacity-90 transition-opacity cursor-pointer border-none flex items-center justify-center gap-3">
+                <Wallet size={20} />
+                دفع عبر محفظة STC Pay
+              </button>
+              <button onClick={() => { setShowSubModal(null); setCurrentPage('register'); }}
+                className="w-full py-4 px-6 bg-gradient-to-l from-blue-500 to-cyan-500 text-white rounded-2xl font-bold text-lg hover:opacity-90 transition-opacity cursor-pointer border-none flex items-center justify-center gap-3">
+                <Building size={20} />
+                دفع عبر تحويل بنكي
+              </button>
+            </div>
+            <div className="mt-6 p-4 bg-amber-50 rounded-2xl border border-amber-200">
+              <p className="text-sm text-amber-800 text-center">
+                🔒 جميع عمليات الدفع آمنة ومشفرة. سيتم تفعيل باقتك فور تأكيد الدفع.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CTA */}
       <section className="section">

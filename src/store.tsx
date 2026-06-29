@@ -22,9 +22,12 @@ interface AppState {
   loginUser: (e: string, p: string) => boolean;
   loginAdmin: (p: string) => boolean;
   logout: () => void;
+  updateUserProfile: (name: string, email: string) => boolean;
+  updateUserPassword: (currentPassword: string, newPassword: string) => boolean;
   createSite: (s: Omit<ClientSite, 'id' | 'createdAt' | 'updatedAt'>) => ClientSite;
   updateSite: (s: ClientSite) => void;
   deleteSite: (id: string) => void;
+  duplicateSite: (id: string) => ClientSite | null;
   getUserSites: () => ClientSite[];
   getSiteAnalytics: (id: string) => DailyAnalytics[];
   getAllAnalytics: () => DailyAnalytics[];
@@ -172,6 +175,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const loginAdmin = (pw: string) => { if (pw === '01147497465') { setIsAdmin(true); setCurrentPage('admin'); return true; } return false; };
   const logout = () => { setCurrentUser(null); setIsAdmin(false); setCurrentPage('landing'); };
 
+  const updateUserProfile = (name: string, email: string) => {
+    if (!currentUser) return false;
+    if (email !== currentUser.email && users.find(u => u.email === email && u.id !== currentUser.id)) return false;
+    const updated = { ...currentUser, name, email };
+    setCurrentUser(updated);
+    setUsers(p => p.map(u => u.id === updated.id ? updated : u));
+    fbSave('users', updated.id, updated);
+    return true;
+  };
+
+  const updateUserPassword = (currentPassword: string, newPassword: string) => {
+    if (!currentUser || currentUser.password !== currentPassword) return false;
+    const updated = { ...currentUser, password: newPassword };
+    setCurrentUser(updated);
+    setUsers(p => p.map(u => u.id === updated.id ? updated : u));
+    fbSave('users', updated.id, updated);
+    return true;
+  };
+
   // Site CRUD
   const modSite = (siteId: string, fn: (s: ClientSite) => ClientSite) => {
     setSites(prev => { const next = prev.map(s => s.id === siteId ? fn({ ...s, updatedAt: new Date().toISOString() }) : s); const c = next.find(s => s.id === siteId); if (c) fbSave('sites', c.id, c); return next; });
@@ -182,6 +204,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
   const updateSite = (s: ClientSite) => { const u = { ...s, updatedAt: new Date().toISOString() }; setSites(p => p.map(x => x.id === u.id ? u : x)); fbSave('sites', u.id, u); };
   const deleteSite = (id: string) => { setSites(p => p.filter(s => s.id !== id)); fbDelete('sites', id); };
+  const duplicateSite = (id: string): ClientSite | null => {
+    const original = sites.find(s => s.id === id);
+    if (!original) return null;
+    const copy: ClientSite = {
+      ...JSON.parse(JSON.stringify(original)),
+      id: uuidv4(),
+      siteName: original.siteName + ' (نسخة)',
+      siteSlug: original.siteSlug + '-copy-' + Date.now().toString(36),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      visits: [],
+      orders: [],
+      contactMessages: [],
+    };
+    setSites(p => [...p, copy]); fbSave('sites', copy.id, copy); return copy;
+  };
   const getUserSites = () => currentUser ? sites.filter(s => s.userId === currentUser.id) : [];
   const recordVisit = (siteId: string, page: string) => { const v: SiteVisit = { id: uuidv4(), siteId, timestamp: new Date().toISOString(), page, device: window.innerWidth < 768 ? 'mobile' : window.innerWidth < 1024 ? 'tablet' : 'desktop' }; modSite(siteId, s => ({ ...s, visits: [...(s.visits || []), v] })); };
 
@@ -218,8 +256,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       currentPage, setCurrentPage, currentUser, setCurrentUser, isAdmin,
       users, sites, templates: T, editingSite, setEditingSite,
       viewingSiteSlug, setViewingSiteSlug, cart, firebaseReady,
-      registerUser, loginUser, loginAdmin, logout,
-      createSite, updateSite, deleteSite, getUserSites,
+      registerUser, loginUser, loginAdmin, logout, updateUserProfile, updateUserPassword,
+      createSite, updateSite, deleteSite, duplicateSite, getUserSites,
       getSiteAnalytics, getAllAnalytics, recordVisit, deleteUser,
       addProduct, updateProduct, deleteProduct,
       addDiscountCode, deleteDiscountCode, validateDiscountCode,

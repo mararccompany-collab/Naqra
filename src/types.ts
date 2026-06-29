@@ -105,9 +105,12 @@ export interface SiteSettings {
     twitter: string;
     instagram: string;
     whatsapp: string;
+    whatsappCustomer?: string;
+    instapay?: string;
     tiktok: string;
     youtube: string;
   };
+  enableInstaPay?: boolean;
   contactEmail: string;
   contactPhone: string;
   address: string;
@@ -115,6 +118,7 @@ export interface SiteSettings {
   googleMapsUrl?: string;
   announcements?: string;
   customCss?: string;
+  verified?: boolean;
 }
 
 export interface ClientSite {
@@ -165,4 +169,4 @@ export interface ContactMessage {
   read: boolean;
 }
 
-export type Page = 'landing' | 'login' | 'register' | 'dashboard' | 'create-site' | 'edit-site' | 'site-settings' | 'analytics' | 'admin' | 'view-site' | 'admin-login' | 'products' | 'orders' | 'discounts';
+export type Page = 'landing' | 'login' | 'register' | 'dashboard' | 'create-site' | 'edit-site' | 'site-settings' | 'analytics' | 'admin' | 'view-site' | 'admin-login' | 'products' | 'orders' | 'discounts' | 'profile';

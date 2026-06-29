@@ -51,6 +51,7 @@ const CreateSite: React.FC = () => {
       discountCodes: [],
       orders: [],
       categories: ['عام'],
+      contactMessages: [],
       settings: {
         showHeader: true, showFooter: true, showContactForm: true, enableDarkMode: false,
         enableCart: true, enableOrders: true, currency: 'ر.س',

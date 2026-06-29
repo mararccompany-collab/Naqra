@@ -189,13 +189,41 @@ const SiteSettings: React.FC = () => {
                 <label className="form-label">العنوان</label>
                 <input type="text" value={settings.address} onChange={(e) => setSettings(prev => ({ ...prev, address: e.target.value }))} className="input" />
               </div>
+              <div className="form-group">
+                <label className="form-label">ساعات العمل</label>
+                <input type="text" value={settings.workingHours || ''} onChange={(e) => setSettings(prev => ({ ...prev, workingHours: e.target.value }))} className="input" placeholder="مثال: السبت - الخميس 9ص - 9م" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">رابط خرائط جوجل (iframe src)</label>
+                <input type="text" value={settings.googleMapsUrl || ''} onChange={(e) => setSettings(prev => ({ ...prev, googleMapsUrl: e.target.value }))} className="input" dir="ltr" placeholder="https://www.google.com/maps/embed?pb=..." />
+              </div>
             </div>
 
-            <div className="card p-8">
+            <div className="card p-8 mb-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-6">✅ توثيق الموقع</h3>
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                <div>
+                  <h4 className="font-medium text-gray-800">موقع موثق</h4>
+                  <p className="text-sm text-gray-500">إظهار علامة التوثيق الزرقاء بجانب اسم موقعك</p>
+                </div>
+                <Toggle value={settings.verified ?? false} onChange={(v) => setSettings(prev => ({ ...prev, verified: v }))} />
+              </div>
+            </div>
+
+            <div className="card p-8 mb-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-6">إعلانات الموقع</h3>
+              <div className="form-group">
+                <label className="form-label">شريط الإعلانات (يظهر في أعلى الموقع)</label>
+                <textarea value={settings.announcements || ''} onChange={(e) => setSettings(prev => ({ ...prev, announcements: e.target.value }))} className="input" style={{ minHeight: '80px', resize: 'none' }} placeholder="مثال: 🎉 تخفيضات تصل إلى 50% لفترة محدودة!" />
+              </div>
+            </div>
+
+            <div className="card p-8 mb-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-6">وسائل التواصل الاجتماعي</h3>
               <div className="grid grid-cols-2 gap-4">
                 {[
-                  { key: 'whatsapp' as const, label: 'واتساب' },
+                  { key: 'whatsapp' as const, label: 'واتساب (رقم)' },
+                  { key: 'whatsappCustomer' as const, label: 'واتساب خدمة العملاء' },
                   { key: 'instagram' as const, label: 'إنستغرام' },
                   { key: 'facebook' as const, label: 'فيسبوك' },
                   { key: 'twitter' as const, label: 'تويتر' },
@@ -206,7 +234,7 @@ const SiteSettings: React.FC = () => {
                     <label className="form-label">{social.label}</label>
                     <input
                       type="text"
-                      value={settings.socialLinks[social.key]}
+                      value={(settings.socialLinks as any)[social.key] || ''}
                       onChange={(e) => setSettings(prev => ({ ...prev, socialLinks: { ...prev.socialLinks, [social.key]: e.target.value } }))}
                       className="input"
                       dir="ltr"
@@ -214,6 +242,31 @@ const SiteSettings: React.FC = () => {
                   </div>
                 ))}
               </div>
+            </div>
+
+            <div className="card p-8">
+              <h3 className="text-lg font-semibold text-gray-800 mb-6">💰 الدفع عبر إنستا باي</h3>
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl mb-4">
+                <div>
+                  <h4 className="font-medium text-gray-800">تفعيل الدفع عبر إنستا باي</h4>
+                  <p className="text-sm text-gray-500">السماح للعملاء بالدفع عبر إنستا باي</p>
+                </div>
+                <Toggle value={settings.enableInstaPay ?? false} onChange={(v) => setSettings(prev => ({ ...prev, enableInstaPay: v }))} />
+              </div>
+              {settings.enableInstaPay && (
+                <div className="form-group">
+                  <label className="form-label">رقم إنستا باي</label>
+                  <input
+                    type="text"
+                    value={settings.socialLinks.instapay || ''}
+                    onChange={(e) => setSettings(prev => ({ ...prev, socialLinks: { ...prev.socialLinks, instapay: e.target.value } }))}
+                    className="input"
+                    dir="ltr"
+                    placeholder="01229938115"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">أدخل رقم الهاتف المرتبط بحساب إنستا باي</p>
+                </div>
+              )}
             </div>
           </div>
         )}

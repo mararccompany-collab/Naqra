@@ -1,15 +1,16 @@
 import React from 'react';
 import { useApp } from '../store';
-import { Plus, Globe, Edit3, Trash2, Eye, Settings, BarChart3, LogOut, ExternalLink, Package, Copy, Check } from 'lucide-react';
+import { Plus, Globe, Edit3, Trash2, Eye, Settings, BarChart3, LogOut, ExternalLink, Package, Copy, Check, CopyPlus, DollarSign, MessageCircle, User } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
-  const { currentUser, getUserSites, setCurrentPage, setEditingSite, setViewingSiteSlug, deleteSite, logout } = useApp();
+  const { currentUser, getUserSites, setCurrentPage, setEditingSite, setViewingSiteSlug, deleteSite, duplicateSite, logout } = useApp();
   const userSites = getUserSites();
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
   
   const totalVisits = userSites.reduce((acc, s) => acc + (s.visits?.length || 0), 0);
   const totalProducts = userSites.reduce((acc, s) => acc + (s.products?.length || 0), 0);
-
+  const totalOrders = userSites.reduce((acc, s) => acc + (s.orders?.length || 0), 0);
+  const totalMessages = userSites.reduce((acc, s) => acc + (s.contactMessages?.filter(m => !m.read)?.length || 0), 0);
 
   const { getSiteUrl } = useApp();
   const copyLink = (slug: string, id: string) => {
@@ -38,6 +39,9 @@ const Dashboard: React.FC = () => {
                 <div className="text-gray-400 text-xs">{currentUser?.email}</div>
               </div>
             </div>
+            <button onClick={() => setCurrentPage('profile')} className="btn btn-ghost btn-sm" title="الحساب الشخصي">
+              <User size={16} />
+            </button>
             <button onClick={logout} className="btn btn-ghost btn-sm text-red-500 hover:bg-red-50">
               <LogOut size={16} />
             </button>
@@ -52,7 +56,7 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-10">
           <div className="stat-card">
             <div className="icon" style={{ background: 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)' }}>
               <Globe size={22} className="text-indigo-500" />
@@ -73,6 +77,20 @@ const Dashboard: React.FC = () => {
             </div>
             <div className="value">{totalProducts}</div>
             <div className="label">المنتجات</div>
+          </div>
+          <div className="stat-card">
+            <div className="icon" style={{ background: 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)' }}>
+              <DollarSign size={22} className="text-sky-500" />
+            </div>
+            <div className="value">{totalOrders}</div>
+            <div className="label">الطلبات</div>
+          </div>
+          <div className="stat-card">
+            <div className="icon" style={{ background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' }}>
+              <MessageCircle size={22} className="text-amber-500" />
+            </div>
+            <div className="value">{totalMessages}</div>
+            <div className="label">غير مقروءة</div>
           </div>
           <div className="stat-card">
             <div className="icon" style={{ background: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)' }}>
@@ -138,6 +156,9 @@ const Dashboard: React.FC = () => {
                       </button>
                       <button onClick={() => { setEditingSite(site); setCurrentPage('analytics'); }} className="btn btn-ghost btn-sm">
                         <BarChart3 size={14} />
+                      </button>
+                      <button onClick={() => { const copy = duplicateSite(site.id); if (copy) { setEditingSite(copy); setCurrentPage('edit-site'); } }} className="btn btn-ghost btn-sm" title="نسخ الموقع">
+                        <CopyPlus size={14} />
                       </button>
                       <button onClick={() => { if(confirm('حذف الموقع وجميع بياناته؟')) deleteSite(site.id); }} className="btn btn-danger btn-sm">
                         <Trash2 size={14} />
