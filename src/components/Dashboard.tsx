@@ -1,7 +1,7 @@
 import React from 'react';
 import { useApp } from '../store';
 import { PLAN_LIMITS } from '../types';
-import { Plus, Globe, Edit3, Trash2, Eye, Settings, BarChart3, LogOut, ExternalLink, Copy, Check, CopyPlus, User, Wallet, ShieldCheck } from 'lucide-react';
+import { Plus, Globe, Edit3, Trash2, Settings, BarChart3, LogOut, ExternalLink, Copy, Check, CopyPlus, User, Wallet, ShieldCheck, Smartphone, CreditCard, Bell, MessageCircle, Share2, Zap, Headphones } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const { currentUser, getUserSites, setCurrentPage, setEditingSite, setViewingSiteSlug, deleteSite, duplicateSite, logout } = useApp();
@@ -54,46 +54,101 @@ const Dashboard: React.FC = () => {
           <p className="text-gray-500">إدارة مواقعك ومتاجرك الإلكترونية</p>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-          <div className="stat-card">
-            <div className="icon" style={{ background: 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)' }}>
-              <Globe size={22} className="text-indigo-500" />
+        {/* Wallet Hero */}
+        <div className="mb-10">
+          <div className="relative p-8 rounded-3xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)' }}>
+            <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 20% 50%, #6366f1 0%, transparent 50%), radial-gradient(circle at 80% 50%, #06b6d4 0%, transparent 50%)' }} />
+            <div className="relative z-10 flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-6">
+                <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center">
+                  <Wallet size={32} className="text-white" />
+                </div>
+                <div>
+                  <p className="text-gray-400 text-sm mb-1">رصيد المحفظة</p>
+                  <p className="text-4xl font-bold text-white">{currentUser?.wallet || 0} <span className="text-lg font-normal text-gray-400">ج.م</span></p>
+                  <p className="text-xs text-gray-500 mt-1">آخر تحديث: الآن</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <p className="text-gray-400 text-xs mb-1">الباقة الحالية</p>
+                  <div className="flex items-center gap-2">
+                    <span className="px-3 py-1 rounded-full text-sm font-semibold" style={{
+                      background: currentUser?.plan === 'free' ? 'rgba(251,191,36,0.2)' : currentUser?.plan === 'professional' ? 'rgba(99,102,241,0.2)' : 'rgba(168,85,247,0.2)',
+                      color: currentUser?.plan === 'free' ? '#fbbf24' : currentUser?.plan === 'professional' ? '#818cf8' : '#a855f7'
+                    }}>
+                      {planInfo.label}
+                    </span>
+                    <span className="text-gray-400 text-xs">المواقع: {userSites.length}/{planLimit}</span>
+                  </div>
+                </div>
+                <button onClick={() => setCurrentPage('landing')} className="px-6 py-3 rounded-2xl font-semibold text-sm border-none cursor-pointer transition-all hover:scale-105" style={{ background: 'linear-gradient(135deg, #6366f1, #06b6d4)', color: 'white' }}>
+                  شحن المحفظة
+                </button>
+              </div>
             </div>
-            <div className="value">{userSites.length} / {planLimit}</div>
-            <div className="label">المواقع</div>
-          </div>
-          <div className="stat-card">
-            <div className="icon" style={{ background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)' }}>
-              <Eye size={22} className="text-green-500" />
-            </div>
-            <div className="value">{userSites.filter(s => s.isPublished).length}</div>
-            <div className="label">منشور</div>
-          </div>
-          <div className="stat-card">
-            <div className="icon" style={{ background: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)' }}>
-              <Wallet size={22} className="text-pink-500" />
-            </div>
-            <div className="value">{currentUser?.wallet || 0} ج.م</div>
-            <div className="label">رصيد المحفظة</div>
-          </div>
-          <div className="stat-card">
-            <div className="icon" style={{ background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' }}>
-              <ShieldCheck size={22} className="text-amber-500" />
-            </div>
-            <div className="value">{planInfo.label}</div>
-            <div className="label">الباقة الحالية</div>
           </div>
         </div>
 
-        {/* Create Button */}
-        <div onClick={() => setCurrentPage('create-site')} className="card p-8 mb-10 cursor-pointer border-2 border-dashed border-gray-200 hover:border-indigo-300 flex items-center justify-center gap-5 group">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-indigo-200">
-            <Plus size={28} className="text-white" />
+        {/* Quick Actions */}
+        <div className="grid grid-cols-4 gap-4 mb-10">
+          <div onClick={() => setCurrentPage('create-site')} className="card p-5 text-center cursor-pointer hover:shadow-lg transition-all border-2 border-transparent hover:border-indigo-200">
+            <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
+              <Plus size={24} className="text-white" />
+            </div>
+            <h4 className="font-semibold text-gray-800 text-sm">إنشاء موقع</h4>
+            <p className="text-xs text-gray-500">موقع أو متجر جديد</p>
           </div>
-          <div>
-            <h3 className="text-xl font-bold text-gray-800 mb-1">إنشاء موقع جديد</h3>
-            <p className="text-gray-500">اختر قالباً وابدأ ببناء موقعك أو متجرك</p>
+          <div onClick={() => setCurrentPage('landing')} className="card p-5 text-center cursor-pointer hover:shadow-lg transition-all border-2 border-transparent hover:border-emerald-200">
+            <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
+              <Wallet size={24} className="text-white" />
+            </div>
+            <h4 className="font-semibold text-gray-800 text-sm">شحن المحفظة</h4>
+            <p className="text-xs text-gray-500">أضف رصيداً لمحفظتك</p>
+          </div>
+          <div onClick={() => setCurrentPage('landing')} className="card p-5 text-center cursor-pointer hover:shadow-lg transition-all border-2 border-transparent hover:border-amber-200">
+            <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+              <ShieldCheck size={24} className="text-white" />
+            </div>
+            <h4 className="font-semibold text-gray-800 text-sm">ترقية الباقة</h4>
+            <p className="text-xs text-gray-500">احصل على مميزات أكثر</p>
+          </div>
+          <div onClick={() => setCurrentPage('profile')} className="card p-5 text-center cursor-pointer hover:shadow-lg transition-all border-2 border-transparent hover:border-pink-200">
+            <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center">
+              <User size={24} className="text-white" />
+            </div>
+            <h4 className="font-semibold text-gray-800 text-sm">الملف الشخصي</h4>
+            <p className="text-xs text-gray-500">بيانات حسابك</p>
+          </div>
+        </div>
+
+        {/* Platform Features */}
+        <div className="mb-10">
+          <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <Zap size={20} className="text-indigo-500" />
+            مميزات حصرية في Naqra
+          </h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { icon: <Smartphone size={18} />, title: 'إنستا باي', desc: 'ادفع واستقبل المدفوعات عبر إنستا باي مباشرة', color: '#10b981' },
+              { icon: <Headphones size={18} />, title: 'خدمة عملاء واتساب', desc: 'تواصل مع العملاء عبر واتساب بنقرة واحدة', color: '#25D366' },
+              { icon: <CreditCard size={18} />, title: 'محفظة رقمية', desc: 'محفظة إلكترونية لإدارة أرباحك واشتراكاتك', color: '#6366f1' },
+              { icon: <Bell size={18} />, title: 'إشعارات ذكية', desc: 'تنبيهات فورية عند وصول طلبات أو رسائل جديدة', color: '#f59e0b' },
+              { icon: <Share2 size={18} />, title: 'توثيق المواقع', desc: 'علامة توثيق زرقاء لمصداقية موقعك', color: '#3b82f6' },
+              { icon: <MessageCircle size={18} />, title: 'ردود تلقائية', desc: 'رسائل ترحيب وردود تلقائية للعملاء', color: '#8b5cf6' },
+              { icon: <BarChart3 size={18} />, title: 'تحليلات متقدمة', desc: 'إحصائيات زوار ومبيعات بشكل لحظي', color: '#ec4899' },
+              { icon: <Globe size={18} />, title: 'استضافة مجانية', desc: 'موقعك منشور على الإنترنت بدون أي رسوم استضافة', color: '#14b8a6' },
+            ].map((feat, i) => (
+              <div key={i} className="flex items-start gap-3 p-4 bg-white rounded-2xl border border-gray-100 hover:shadow-md transition-shadow">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${feat.color}15`, color: feat.color }}>
+                  {feat.icon}
+                </div>
+                <div className="min-w-0">
+                  <h4 className="font-semibold text-gray-800 text-sm">{feat.title}</h4>
+                  <p className="text-xs text-gray-500 leading-relaxed">{feat.desc}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 

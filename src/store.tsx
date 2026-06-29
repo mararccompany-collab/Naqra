@@ -117,7 +117,18 @@ console.log('🔍 Detected slug:', INITIAL_SLUG, 'hash:', window.location.hash, 
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentPage, setCurrentPage] = useState<Page>(INITIAL_SLUG ? 'view-site' : 'landing');
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    try {
+      const saved = localStorage.getItem('naqra_current_user');
+      if (saved) {
+        const parsed = JSON.parse(saved) as User;
+        if (!parsed.plan) parsed.plan = 'free';
+        if (typeof parsed.wallet !== 'number') parsed.wallet = 0;
+        return parsed;
+      }
+    } catch {}
+    return null;
+  });
   const [isAdmin, setIsAdmin] = useState(false);
   const [users, setUsers] = useState<User[]>(() => { try { return JSON.parse(localStorage.getItem('naqra_users') || '[]'); } catch { return []; } });
   const [sites, setSites] = useState<ClientSite[]>(() => { try { return JSON.parse(localStorage.getItem('naqra_sites') || '[]'); } catch { return []; } });
@@ -130,6 +141,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const setEditingSite = useCallback((s: ClientSite | null) => setEditingSiteRaw(s), []);
   useEffect(() => { if (editingSite) { const f = sites.find(s => s.id === editingSite.id); if (f && JSON.stringify(f) !== JSON.stringify(editingSite)) setEditingSiteRaw(f); } }, [sites]);
 
+  // Sync currentUser with latest users data (wallet, plan updates from admin)
+  useEffect(() => {
+    if (currentUser) {
+      const updated = users.find(u => u.id === currentUser.id);
+      if (updated) {
+        const needsSync = updated.wallet !== currentUser.wallet || updated.plan !== currentUser.plan || updated.name !== currentUser.name || updated.email !== currentUser.email;
+        if (needsSync) setCurrentUser(updated);
+      }
+    }
+  }, [users]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Save slug to sessionStorage so iframe can find it
   useEffect(() => {
     if (viewingSiteSlug) sessionStorage.setItem('naqra_viewing_site', viewingSiteSlug);
@@ -140,6 +162,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => { localStorage.setItem('naqra_users', JSON.stringify(users)); }, [users]);
   useEffect(() => { localStorage.setItem('naqra_sites', JSON.stringify(sites)); }, [sites]);
   useEffect(() => { localStorage.setItem('naqra_transactions', JSON.stringify(transactions)); }, [transactions]);
+  useEffect(() => { if (currentUser) localStorage.setItem('naqra_current_user', JSON.stringify(currentUser)); else localStorage.removeItem('naqra_current_user'); }, [currentUser]);
 
   // Firebase
   useEffect(() => {
@@ -265,7 +288,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const confirmTransaction = (txId: string) => {
     const tx = transactions.find(t => t.id === txId);
     if (!tx || tx.confirmed) return;
-    tx.confirmed = true;
     if (tx.type === 'deposit' && tx.amount > 0) {
       updateUserWallet(tx.userId, tx.amount);
     }
