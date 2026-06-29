@@ -185,8 +185,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (!ok || !alive) { setFirebaseReady(true); return; }
       const lu: User[] = JSON.parse(localStorage.getItem('naqra_users') || '[]');
       const ls: ClientSite[] = JSON.parse(localStorage.getItem('naqra_sites') || '[]');
-      fbListen('users', (d) => { if (!alive) return; if (d.length > 0) setUsers(d as User[]); else if (lu.length > 0) lu.forEach(u => fbSave('users', u.id, u)); setFirebaseReady(true); }, () => setFirebaseReady(true));
+      const lt: Transaction[] = JSON.parse(localStorage.getItem('naqra_transactions') || '[]');
+      fbListen('users', (d) => { if (!alive) return; if (d.length > 0) setUsers(d.map((u: any) => ({ ...u, plan: u.plan || 'free', wallet: typeof u.wallet === 'number' ? u.wallet : 0 })) as User[]); else if (lu.length > 0) lu.forEach(u => fbSave('users', u.id, u)); setFirebaseReady(true); }, () => setFirebaseReady(true));
       fbListen('sites', (d) => { if (!alive) return; if (d.length > 0) setSites(d as ClientSite[]); else if (ls.length > 0) ls.forEach(s => fbSave('sites', s.id, s)); setFirebaseReady(true); }, () => setFirebaseReady(true));
+      fbListen('transactions', (d) => { if (!alive) return; if (d.length > 0) setTransactions(prev => { const merged = [...prev]; d.forEach((tx: any) => { if (!merged.find(t => t.id === tx.id)) merged.push(tx); }); return merged; }); else if (lt.length > 0) lt.forEach(tx => fbSave('transactions', tx.id, tx)); }, () => {});
     };
     init();
     const t = setTimeout(() => { if (alive) setFirebaseReady(true); }, 8000);
@@ -286,23 +288,52 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const getSiteAnalytics = (id: string) => buildA(sites.find(s => s.id === id)?.visits || []);
   const getAllAnalytics = () => { const a: SiteVisit[] = []; sites.forEach(s => { if (s.visits) a.push(...s.visits); }); return buildA(a); };
   const deleteUser = (id: string) => { const sids = sites.filter(s => s.userId === id).map(s => s.id); setUsers(p => p.filter(u => u.id !== id)); fbDelete('users', id); sids.forEach(sid => { setSites(p => p.filter(s => s.id !== sid)); fbDelete('sites', sid); }); };
-
-  // Wallet / Plans
+  // Wallet / Plans — now ALL save to Firebase so cross-session sync works
   const updateUserWallet = (userId: string, amount: number) => {
-    setUsers(p => p.map(u => u.id === userId ? { ...u, wallet: Math.max(0, (u.wallet || 0) + amount) } : u));
-    if (currentUser?.id === userId) setCurrentUser(prev => prev ? { ...prev, wallet: Math.max(0, (prev.wallet || 0) + amount) } : null);
+    let updatedUser: User | null = null;
+    setUsers(p => {
+      const next = p.map(u => {
+        if (u.id !== userId) return u;
+        updatedUser = { ...u, wallet: Math.max(0, (u.wallet || 0) + amount) };
+        return updatedUser;
+      });
+      if (updatedUser) fbSave('users', userId, updatedUser);
+      return next;
+    });
+    if (currentUser?.id === userId) {
+      setCurrentUser(prev => {
+        if (!prev) return null;
+        const updated = { ...prev, wallet: Math.max(0, (prev.wallet || 0) + amount) };
+        fbSave('users', userId, updated);
+        return updated;
+      });
+    }
   };
   const setUserPlan = (userId: string, plan: Plan) => {
-    setUsers(p => p.map(u => u.id === userId ? { ...u, plan } : u));
-    if (currentUser?.id === userId) setCurrentUser(prev => prev ? { ...prev, plan } : null);
+    let updatedUser: User | null = null;
+    setUsers(p => {
+      const next = p.map(u => {
+        if (u.id !== userId) return u;
+        updatedUser = { ...u, plan };
+        return updatedUser;
+      });
+      if (updatedUser) fbSave('users', userId, updatedUser);
+      return next;
+    });
+    if (currentUser?.id === userId) {
+      setCurrentUser(prev => {
+        if (!prev) return null;
+        const updated = { ...prev, plan };
+        fbSave('users', userId, updated);
+        return updated;
+      });
+    }
   };
-  // Normalize users after Firebase sync or any external update
-  useEffect(() => {
-    setUsers(prev => prev.map(u => ({ ...u, plan: u.plan || 'free', wallet: typeof u.wallet === 'number' ? u.wallet : 0 })));
-  }, []);
+
   const addTransaction = (userId: string, type: 'deposit' | 'subscription' | 'withdrawal', amount: number, note: string) => {
     const t: Transaction = { id: uuidv4(), userId, type, amount, note, createdAt: new Date().toISOString(), confirmed: false };
     setTransactions(p => [...p, t]);
+    fbSave('transactions', t.id, t);
   };
   const getTransactions = (userId: string) => transactions.filter(t => t.userId === userId);
   const getAllTransactions = () => transactions;
@@ -313,9 +344,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updateUserWallet(tx.userId, tx.amount);
     }
     setTransactions(p => p.map(t => t.id === txId ? { ...t, confirmed: true } : t));
+    fbSave('transactions', txId, { ...tx, confirmed: true });
   };
   const deleteTransaction = (txId: string) => {
     setTransactions(p => p.filter(t => t.id !== txId));
+    fbDelete('transactions', txId);
   };
 
   // Products / Discounts / Orders
