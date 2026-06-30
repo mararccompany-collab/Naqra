@@ -56,10 +56,12 @@ const CreateSite: React.FC = () => {
       contactMessages: [],
       settings: {
         showHeader: true, showFooter: true, showContactForm: true, enableDarkMode: false,
-        enableCart: true, enableOrders: true, currency: 'ج.م',
+        enableCart: true, enableOrders: true, enableReviews: true, enableWishlist: true, currency: 'ج.م',
         seoTitle: siteName, seoDescription: description,
         socialLinks: { facebook: '', twitter: '', instagram: '', whatsapp: '', tiktok: '', youtube: '' },
         contactEmail: currentUser.email, contactPhone: '', address: '',
+        shippingMethods: [{ id: 'standard', name: 'Standard', nameAr: 'شحن عادي', cost: 0, estimatedDays: '3-7', enabled: true }],
+        tax: { enabled: false, rate: 0, name: 'VAT', nameAr: 'ضريبة' },
       },
     });
 

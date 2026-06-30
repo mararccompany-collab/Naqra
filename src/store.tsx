@@ -1,7 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { User, ClientSite, SiteTemplate, DailyAnalytics, Page, SiteVisit, Product, DiscountCode, Order, CartItem, ContactMessage, Plan, PLAN_LIMITS, Transaction } from './types';
+import { User, ClientSite, SiteTemplate, DailyAnalytics, Page, SiteVisit, Product, DiscountCode, Order, CartItem, ContactMessage, Plan, PLAN_LIMITS, Transaction, AppNotification, Review, CustomerInfo, ShippingMethod, TaxSettings, SeoPage } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { fbSave, fbDelete, fbListen, fbTest } from './firebase';
+
+export interface NotifyOptions {
+  title: string;
+  message: string;
+  type?: 'success' | 'error' | 'info' | 'warning';
+  confirmLabel?: string;
+  onConfirm?: () => void;
+  onClose?: () => void;
+  showCancel?: boolean;
+}
 
 interface AppState {
   currentPage: Page;
@@ -55,6 +65,27 @@ interface AppState {
   updateCartQuantity: (pid: string, q: number) => void;
   clearCart: () => void;
   getSiteUrl: (slug: string) => string;
+  notification: NotifyOptions | null;
+  notify: (o: NotifyOptions) => void;
+  hideNotification: () => void;
+  addNotification: (userId: string, title: string, message: string, type: AppNotification['type'], link?: string) => void;
+  getNotifications: (userId: string) => AppNotification[];
+  markNotificationRead: (userId: string, notifId: string) => void;
+  markAllNotificationsRead: (userId: string) => void;
+  getUnreadCount: (userId: string) => number;
+  addReview: (siteId: string, productId: string, review: Omit<Review, 'id' | 'createdAt'>) => void;
+  toggleWishlist: (siteId: string, productId: string) => void;
+  isInWishlist: (siteId: string, productId: string) => boolean;
+  toggleDarkMode: () => void;
+  toggleMaintenanceMode: (siteId: string) => void;
+  updateCustomCSS: (siteId: string, css: string) => void;
+  updateShippingSettings: (siteId: string, methods: ShippingMethod[]) => void;
+  updateTaxSettings: (siteId: string, tax: TaxSettings) => void;
+  updateSeoSettings: (siteId: string, seoPages: SeoPage[]) => void;
+  updateOrderStatusWithLog: (siteId: string, oid: string, status: Order['status'], note?: string) => void;
+  getCustomers: (siteId: string) => CustomerInfo[];
+  exportOrdersCSV: (siteId: string) => string;
+  exportContactsCSV: (siteId: string) => string;
 }
 
 const Ctx = createContext<AppState | null>(null);
@@ -142,6 +173,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [viewingSiteSlug, setViewingSiteSlug] = useState<string | null>(INITIAL_SLUG);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [firebaseReady, setFirebaseReady] = useState(false);
+  const [notification, setNotification] = useState<NotifyOptions | null>(null);
+  const notify = useCallback((o: NotifyOptions) => setNotification(o), []);
+  const hideNotification = useCallback(() => setNotification(null), []);
 
   const setEditingSite = useCallback((s: ClientSite | null) => setEditingSiteRaw(s), []);
   useEffect(() => { if (editingSite) { const f = sites.find(s => s.id === editingSite.id); if (f && JSON.stringify(f) !== JSON.stringify(editingSite)) setEditingSiteRaw(f); } }, [sites]);
@@ -373,6 +407,97 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateCartQuantity = (pid: string, q: number) => { if (q <= 0) { removeFromCart(pid); return; } setCart(p => p.map(i => i.product.id === pid ? { ...i, quantity: q } : i)); };
   const clearCart = () => setCart([]);
 
+  // Notification Center
+  const addNotification = (userId: string, title: string, message: string, type: AppNotification['type'], link?: string) => {
+    const n: AppNotification = { id: uuidv4(), userId, title, message, type, read: false, createdAt: new Date().toISOString(), link };
+    setUsers(p => p.map(u => u.id === userId ? { ...u, notifications: [...(u.notifications || []), n] } : u));
+    if (currentUser?.id === userId) setCurrentUser(prev => prev ? { ...prev, notifications: [...(prev.notifications || []), n] } : null);
+  };
+  const getNotifications = (userId: string) => users.find(u => u.id === userId)?.notifications || [];
+  const markNotificationRead = (userId: string, notifId: string) => {
+    setUsers(p => p.map(u => u.id === userId ? { ...u, notifications: (u.notifications || []).map(n => n.id === notifId ? { ...n, read: true } : n) } : u));
+    if (currentUser?.id === userId) setCurrentUser(prev => prev ? { ...prev, notifications: (prev.notifications || []).map(n => n.id === notifId ? { ...n, read: true } : n) } : null);
+  };
+  const markAllNotificationsRead = (userId: string) => {
+    setUsers(p => p.map(u => u.id === userId ? { ...u, notifications: (u.notifications || []).map(n => ({ ...n, read: true })) } : u));
+    if (currentUser?.id === userId) setCurrentUser(prev => prev ? { ...prev, notifications: (prev.notifications || []).map(n => ({ ...n, read: true })) } : null);
+  };
+  const getUnreadCount = (userId: string) => (users.find(u => u.id === userId)?.notifications || []).filter(n => !n.read).length;
+
+  // Reviews
+  const addReview = (siteId: string, productId: string, reviewData: Omit<Review, 'id' | 'createdAt'>) => {
+    const r: Review = { id: uuidv4(), createdAt: new Date().toISOString(), ...reviewData };
+    modSite(siteId, s => ({ ...s, products: (s.products || []).map(p => p.id === productId ? { ...p, reviews: [...(p.reviews || []), r] } : p) }));
+  };
+
+  // Wishlist
+  const toggleWishlist = (siteId: string, productId: string) => {
+    const site = sites.find(s => s.id === siteId);
+    if (!site) return;
+    const existing = (site.wishlist || []).find(w => w.productId === productId);
+    modSite(siteId, s => ({ ...s, wishlist: existing ? (s.wishlist || []).filter(w => w.productId !== productId) : [...(s.wishlist || []), { productId, addedAt: new Date().toISOString() }] }));
+  };
+  const isInWishlist = (siteId: string, productId: string) => !!(sites.find(s => s.id === siteId)?.wishlist || []).find(w => w.productId === productId);
+
+  // Dark Mode
+  const toggleDarkMode = () => {
+    if (!currentUser) return;
+    const next = !currentUser.darkMode;
+    const updated = { ...currentUser, darkMode: next };
+    setCurrentUser(updated);
+    setUsers(p => p.map(u => u.id === updated.id ? updated : u));
+    fbSave('users', updated.id, updated);
+  };
+
+  // Maintenance
+  const toggleMaintenanceMode = (siteId: string) => modSite(siteId, s => ({ ...s, settings: { ...s.settings, maintenanceMode: !s.settings.maintenanceMode } }));
+
+  // Custom CSS
+  const updateCustomCSS = (siteId: string, css: string) => modSite(siteId, s => ({ ...s, settings: { ...s.settings, customCss: css } }));
+
+  // Shipping / Tax / SEO
+  const updateShippingSettings = (siteId: string, methods: ShippingMethod[]) => modSite(siteId, s => ({ ...s, settings: { ...s.settings, shippingMethods: methods } }));
+  const updateTaxSettings = (siteId: string, tax: TaxSettings) => modSite(siteId, s => ({ ...s, settings: { ...s.settings, tax } }));
+  const updateSeoSettings = (siteId: string, seoPages: SeoPage[]) => modSite(siteId, s => ({ ...s, settings: { ...s.settings, seoPages } }));
+
+  // Order status with timeline
+  const updateOrderStatusWithLog = (siteId: string, oid: string, status: Order['status'], note?: string) => modSite(siteId, s => ({ ...s, orders: (s.orders || []).map(o => o.id === oid ? { ...o, status, statusLog: [...(o.statusLog || []), { status, timestamp: new Date().toISOString(), note }] } : o) }));
+
+  // Customers CRM
+  const getCustomers = (siteId: string): CustomerInfo[] => {
+    const site = sites.find(s => s.id === siteId);
+    if (!site) return [];
+    const map = new Map<string, CustomerInfo>();
+    (site.orders || []).forEach(o => {
+      const key = o.customerEmail;
+      if (!map.has(key)) {
+        map.set(key, { email: o.customerEmail, name: o.customerName, phone: o.customerPhone, address: o.customerAddress, totalOrders: 0, totalSpent: 0 });
+      }
+      const c = map.get(key)!;
+      c.totalOrders++;
+      c.totalSpent += o.total;
+      if (o.createdAt > (c.lastOrderDate || '')) c.lastOrderDate = o.createdAt;
+    });
+    return Array.from(map.values()).sort((a, b) => b.totalOrders - a.totalOrders);
+  };
+
+  // Export CSV
+  const escapeCSV = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const exportOrdersCSV = (siteId: string) => {
+    const site = sites.find(s => s.id === siteId);
+    if (!site) return '';
+    const headers = 'customerName,customerEmail,customerPhone,items,total,status,createdAt,notes';
+    const rows = (site.orders || []).map(o => [escapeCSV(o.customerName), escapeCSV(o.customerEmail), escapeCSV(o.customerPhone), escapeCSV(o.items.map(i => `${i.product.name}x${i.quantity}`).join('; ')), o.total, o.status, o.createdAt, escapeCSV(o.notes || '')].join(',')).join('\n');
+    return `${headers}\n${rows}`;
+  };
+  const exportContactsCSV = (siteId: string) => {
+    const site = sites.find(s => s.id === siteId);
+    if (!site) return '';
+    const headers = 'name,email,message,createdAt';
+    const rows = (site.contactMessages || []).map(m => [escapeCSV(m.name), escapeCSV(m.email), escapeCSV(m.message), m.createdAt].join(',')).join('\n');
+    return `${headers}\n${rows}`;
+  };
+
   return (
     <Ctx.Provider value={{
       currentPage, setCurrentPage, currentUser, setCurrentUser, isAdmin,
@@ -386,7 +511,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addDiscountCode, deleteDiscountCode, validateDiscountCode,
       createOrder, updateOrderStatus, submitContactMessage,
       addToCart, removeFromCart, updateCartQuantity, clearCart,
-      getSiteUrl,
+      getSiteUrl, notification, notify, hideNotification,
+      addNotification, getNotifications, markNotificationRead, markAllNotificationsRead, getUnreadCount,
+      addReview, toggleWishlist, isInWishlist, toggleDarkMode, toggleMaintenanceMode, updateCustomCSS,
+      updateShippingSettings, updateTaxSettings, updateSeoSettings, updateOrderStatusWithLog,
+      getCustomers, exportOrdersCSV, exportContactsCSV,
     }}>
       {children}
     </Ctx.Provider>

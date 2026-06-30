@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../store';
-import { Product, TemplateSection } from '../types';
+import { Product, TemplateSection, Order } from '../types';
 import { ArrowRight, Mail, Phone, MapPin, Star, ShoppingCart, Send, Menu, X, Plus, Minus, Trash2, Tag, Check, MessageCircle, ChevronDown, ChevronUp, Search, ArrowUp, Share2, Image as ImageIcon, Headphones, ShieldCheck } from 'lucide-react';
 
 const SiteViewer: React.FC = () => {
-  const { viewingSiteSlug, sites, setCurrentPage, setViewingSiteSlug, recordVisit, cart, addToCart, removeFromCart, updateCartQuantity, clearCart, validateDiscountCode, createOrder, submitContactMessage, currentUser } = useApp();
+  const { viewingSiteSlug, sites, setCurrentPage, setViewingSiteSlug, recordVisit, cart, addToCart, removeFromCart, updateCartQuantity, clearCart, validateDiscountCode, createOrder, submitContactMessage, currentUser, toggleWishlist, isInWishlist, addReview } = useApp();
   const [mobileMenu, setMobileMenu] = useState(false);
   const [showCart, setShowCart] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -18,6 +18,9 @@ const SiteViewer: React.FC = () => {
   const [contactForm, setContactForm] = useState({ name: '', email: '', message: '' });
   const [contactSent, setContactSent] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [showOrderTracker, setShowOrderTracker] = useState(false);
+  const [trackEmail, setTrackEmail] = useState('');
+  const [trackedOrders, setTrackedOrders] = useState<Order[]>([]);
   const [cookieConsent, setCookieConsent] = useState(() => localStorage.getItem('naqra_cookie_consent') === 'true');
   const [openFaq, setOpenFaq] = useState<string | null>(null);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
@@ -91,6 +94,19 @@ const SiteViewer: React.FC = () => {
           <div className="text-7xl mb-6">🔍</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-3">الموقع غير موجود</h2>
           <p className="text-gray-500 mb-4">تأكد من صحة الرابط</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (site.settings?.maintenanceMode && !isOwner) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-slate-900 flex items-center justify-center p-6">
+        <div className="text-center animate-fade bg-white/5 backdrop-blur p-12 rounded-3xl border border-white/10 max-w-md">
+          <div className="text-7xl mb-6">🔧</div>
+          <h2 className="text-2xl font-bold text-white mb-3">الموقع تحت الصيانة</h2>
+          <p className="text-gray-400 mb-2">نعمل على تحسين تجربتك. سنعود قريباً!</p>
+          <div className="w-12 h-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full mx-auto mt-6" />
         </div>
       </div>
     );
@@ -302,11 +318,24 @@ const SiteViewer: React.FC = () => {
                             ⭐ مميز
                           </span>
                         )}
+                        {site.settings?.enableWishlist && (
+                          <button onClick={(e) => { e.stopPropagation(); toggleWishlist(site.id, product.id); showToast(isInWishlist(site.id, product.id) ? '✓ أزيل من المفضلة' : '✓ أضيف للمفضلة'); }}
+                            style={{ position: 'absolute', bottom: '12px', right: '12px', width: '36px', height: '36px', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.9)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                            {isInWishlist(site.id, product.id) ? '❤️' : '🤍'}
+                          </button>
+                        )}
                       </div>
                       <div style={{ padding: '24px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px' }}>
                           <h3 style={{ fontWeight: 600, fontSize: '18px', color: textColor }}>{product.name}</h3>
-                          <span style={{ fontSize: '12px', padding: '4px 10px', background: `${site.primaryColor}15`, color: site.primaryColor, borderRadius: '20px' }}>{product.category}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '12px', padding: '4px 10px', background: `${site.primaryColor}15`, color: site.primaryColor, borderRadius: '20px' }}>{product.category}</span>
+                            {site.settings?.enableReviews && product.reviews && product.reviews.length > 0 && (
+                              <span style={{ fontSize: '13px', color: textMuted }}>
+                                {'⭐'.repeat(Math.round(product.reviews.reduce((s, r) => s + r.rating, 0) / product.reviews.length))} ({product.reviews.length})
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <p style={{ fontSize: '14px', color: textMuted, marginBottom: '16px', lineHeight: 1.6 }}>{product.description}</p>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
@@ -325,6 +354,39 @@ const SiteViewer: React.FC = () => {
                           <ShoppingCart size={18} />
                           {product.inStock ? 'أضف للسلة' : 'نفد المخزون'}
                         </button>
+                        {site.settings?.enableReviews && (
+                          <div style={{ marginTop: '12px', borderTop: `1px solid ${borderColor}`, paddingTop: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                              <span style={{ fontSize: '13px', fontWeight: 600, color: textColor }}>التقييمات</span>
+                              <span onClick={() => {
+                                const rating = prompt('تقييمك (1-5 نجوم):', '5');
+                                if (rating && parseInt(rating) >= 1 && parseInt(rating) <= 5) {
+                                  const name = prompt('اسمك:');
+                                  if (name) {
+                                    addReview(site.id, product.id, {
+                                      userId: currentUser?.id || 'guest',
+                                      customerName: name,
+                                      customerEmail: currentUser?.email || 'guest@naqra.com',
+                                      rating: parseInt(rating),
+                                      comment: prompt('تعليقك:') || '',
+                                    });
+                                    showToast('✓ تم إضافة تقييمك');
+                                  }
+                                }
+                              }} style={{ fontSize: '12px', color: site.primaryColor, cursor: 'pointer' }}>➕ إضافة تقييم</span>
+                            </div>
+                            {(product.reviews || []).slice(0, 3).map(r => (
+                              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', fontSize: '12px', color: textMuted }}>
+                                <span>{'⭐'.repeat(r.rating)}</span>
+                                <span style={{ fontWeight: 500 }}>{r.customerName}</span>
+                                <span>{r.comment?.substring(0, 40)}{r.comment?.length > 40 ? '...' : ''}</span>
+                              </div>
+                            ))}
+                            {(product.reviews || []).length > 3 && (
+                              <span style={{ fontSize: '11px', color: textMuted }}>+ {(product.reviews || []).length - 3} تقييم آخر</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -742,6 +804,63 @@ const SiteViewer: React.FC = () => {
         </button>
       )}
 
+      {/* Order Tracker Modal */}
+      {showOrderTracker && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6" style={{ direction: 'rtl' }}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setShowOrderTracker(false); setTrackedOrders([]); setTrackEmail(''); }} />
+          <div className="relative w-full max-w-lg animate-fade bg-white rounded-3xl shadow-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2" />
+            <div className="p-8">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-800">📦 تتبع طلباتي</h3>
+                <button onClick={() => { setShowOrderTracker(false); setTrackedOrders([]); setTrackEmail(''); }} className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 cursor-pointer border-none"><X size={18} /></button>
+              </div>
+              <div className="form-group mb-4">
+                <label className="form-label">أدخل بريدك الإلكتروني لتتبع طلباتك</label>
+                <input type="email" value={trackEmail} onChange={e => setTrackEmail(e.target.value)} className="input" placeholder="example@email.com" dir="ltr" />
+              </div>
+              <button onClick={() => { const orders = site.orders.filter(o => o.customerEmail.toLowerCase() === trackEmail.toLowerCase()); setTrackedOrders(orders); if (orders.length === 0) showToast('لا توجد طلبات بهذا البريد'); }} className="w-full py-3 bg-gradient-to-l from-indigo-500 to-purple-500 text-white rounded-2xl font-bold cursor-pointer border-none">🔍 بحث</button>
+              {trackedOrders.length > 0 && (
+                <div className="mt-6 space-y-4 max-h-60 overflow-y-auto">
+                  {trackedOrders.map(order => {
+                    const statusSteps = ['pending', 'confirmed', 'shipped', 'delivered'];
+                    const currentStep = statusSteps.indexOf(order.status);
+                    const statusLabels: Record<string, string> = { pending: 'قيد المراجعة', confirmed: 'تم التأكيد', shipped: 'تم الشحن', delivered: 'تم التوصيل', cancelled: 'ملغي' };
+                    return (
+                      <div key={order.id} className="p-4 bg-gray-50 rounded-2xl">
+                        <div className="flex justify-between mb-3">
+                          <div>
+                            <span className="text-sm font-bold text-gray-800">طلب #{order.id.slice(0, 8)}</span>
+                            <span className="text-xs text-gray-500 mr-2">{new Date(order.createdAt).toLocaleDateString('ar-EG')}</span>
+                          </div>
+                          <span className="text-sm font-bold text-gray-800">{order.total} ج.م</span>
+                        </div>
+                        <div className="flex items-center gap-1 mb-2">
+                          {statusSteps.map((s, i) => (
+                            <div key={s} className="flex-1 text-center">
+                              <div className={`w-3 h-3 mx-auto rounded-full ${i <= currentStep ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                              <span className={`text-xs ${i <= currentStep ? 'text-emerald-600 font-medium' : 'text-gray-400'}`}>{statusLabels[s]}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {order.statusLog && order.statusLog.length > 0 && (
+                          <div className="mt-2 text-xs text-gray-500 space-y-1">
+                            {order.statusLog.map((log, i) => (
+                              <div key={i}>• {statusLabels[log.status]} - {new Date(log.timestamp).toLocaleDateString('ar-EG', { hour: '2-digit', minute: '2-digit' })} {log.note && `(${log.note})`}</div>
+                            ))}
+                          </div>
+                        )}
+                        {order.shippingMethod && <div className="text-xs text-gray-500 mt-1">🚚 {order.shippingMethod}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Cookie Consent */}
       {!cookieConsent && (
         <div style={{ position: 'fixed', bottom: '0', left: '0', right: '0', background: '#1e293b', color: 'white', padding: '16px 24px', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', flexWrap: 'wrap' }}>
@@ -757,11 +876,31 @@ const SiteViewer: React.FC = () => {
         </button>
       )}
 
-      {/* Success Message */}
+      {/* Success Message with Tracking */}
       {orderSuccess && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-green-500 text-white px-8 py-4 rounded-2xl shadow-2xl z-50 animate-fade flex items-center gap-3">
-          <Check size={24} />
-          <span className="font-semibold">تم إرسال طلبك بنجاح! سنتواصل معك قريباً</span>
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-gradient-to-l from-emerald-500 to-green-500 text-white px-8 py-6 rounded-3xl shadow-2xl z-50 animate-fade" style={{ direction: 'rtl', maxWidth: '420px', width: '90%' }}>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center"><Check size={22} /></div>
+            <div>
+              <div className="font-bold text-base">تم استلام طلبك بنجاح! 🎉</div>
+              <div className="text-sm text-white/80">سنقوم بتأكيد الطلب والتواصل معك قريباً</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-white/80">
+            <span>📦</span>
+            <span>حالة الطلب: <strong>قيد المراجعة</strong></span>
+          </div>
+          <div className="mt-3 flex gap-1">
+            {['pending', 'confirmed', 'shipped', 'delivered'].map((s, i) => (
+              <div key={s} className="flex-1 h-1.5 rounded-full" style={{ background: i === 0 ? 'white' : 'rgba(255,255,255,0.3)' }} />
+            ))}
+          </div>
+          <div className="flex justify-between mt-1 text-xs text-white/60">
+            <span>قيد المراجعة</span>
+            <span>مؤكد</span>
+            <span>تم الشحن</span>
+            <span>تم التوصيل</span>
+          </div>
         </div>
       )}
 
@@ -797,6 +936,9 @@ const SiteViewer: React.FC = () => {
                   )}
                 </button>
               )}
+              <button onClick={() => setShowOrderTracker(true)} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer' }} title="تتبع الطلبات">
+                📦
+              </button>
               <button onClick={shareSite} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer' }} title="مشاركة">
                 <Share2 size={20} />
               </button>

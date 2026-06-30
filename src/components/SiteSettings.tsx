@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../store';
 import { SiteSettings as SiteSettingsType, DiscountCode, Product } from '../types';
-import { ArrowRight, Save, Check, Plus, Trash2, Tag, Package, Percent } from 'lucide-react';
+import { ArrowRight, Save, Check, Plus, Trash2, Tag, Package, Percent, Truck, Receipt, FileText, Code2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import CustomersPage from './CustomersPage';
 
 const SiteSettings: React.FC = () => {
-  const { editingSite, updateSite, setCurrentPage, addProduct, updateProduct, deleteProduct, addDiscountCode, deleteDiscountCode, sites, updateOrderStatus } = useApp();
+  const { editingSite, updateSite, setCurrentPage, addProduct, updateProduct, deleteProduct, addDiscountCode, deleteDiscountCode, sites, updateOrderStatus, notify } = useApp();
   
   // Always use the freshest site data from the store
   const liveSite = editingSite ? sites.find(s => s.id === editingSite.id) || editingSite : null;
-  const [activeTab, setActiveTab] = useState<'general' | 'products' | 'discounts' | 'orders' | 'messages'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'products' | 'discounts' | 'orders' | 'customers' | 'messages' | 'shipping' | 'tax' | 'seo' | 'code'>('general');
   const [settings, setSettings] = useState<SiteSettingsType>({
     showHeader: true, showFooter: true, showContactForm: true, enableDarkMode: false,
-    enableCart: true, enableOrders: true, currency: 'ر.س',
+    enableCart: true, enableOrders: true, enableReviews: true, enableWishlist: true, currency: 'ج.م',
     seoTitle: '', seoDescription: '',
     socialLinks: { facebook: '', twitter: '', instagram: '', whatsapp: '', tiktok: '', youtube: '' },
     contactEmail: '', contactPhone: '', address: '',
@@ -126,7 +127,12 @@ const SiteSettings: React.FC = () => {
             { id: 'products' as const, label: `المنتجات (${activeSite.products?.length || 0})`, icon: '📦' },
             { id: 'discounts' as const, label: `أكواد الخصم (${activeSite.discountCodes?.length || 0})`, icon: '🏷️' },
             { id: 'orders' as const, label: `الطلبات (${activeSite.orders?.length || 0})`, icon: '📋' },
+            { id: 'customers' as const, label: `العملاء`, icon: '👥' },
             { id: 'messages' as const, label: `الرسائل (${(activeSite.contactMessages || []).filter(m => !m.read).length || 0})`, icon: '✉️' },
+            { id: 'shipping' as const, label: 'الشحن', icon: '🚚' },
+            { id: 'tax' as const, label: 'الضرائب', icon: '💰' },
+            { id: 'seo' as const, label: 'تحسين محركات', icon: '🔍' },
+            { id: 'code' as const, label: 'كود مخصص', icon: '💻' },
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`tab ${activeTab === tab.id ? 'active' : ''}`}>
               {tab.icon} {tab.label}
@@ -147,6 +153,8 @@ const SiteSettings: React.FC = () => {
                   { key: 'enableDarkMode', label: 'الوضع الداكن', desc: 'تفعيل المظهر الليلي' },
                   { key: 'enableCart', label: 'سلة المشتريات', desc: 'تفعيل سلة التسوق' },
                   { key: 'enableOrders', label: 'الطلبات', desc: 'السماح بإتمام الطلبات' },
+                  { key: 'enableReviews', label: 'التقييمات', desc: 'السماح بإضافة تقييمات على المنتجات' },
+                  { key: 'enableWishlist', label: 'المفضلة', desc: 'تفعيل إضافة المنتجات إلى المفضلة' },
                 ].map((item) => (
                   <div key={item.key} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                     <div>
@@ -207,6 +215,17 @@ const SiteSettings: React.FC = () => {
                   <p className="text-sm text-gray-500">إظهار علامة التوثيق الزرقاء بجانب اسم موقعك</p>
                 </div>
                 <Toggle value={settings.verified ?? false} onChange={(v) => setSettings(prev => ({ ...prev, verified: v }))} />
+              </div>
+            </div>
+
+            <div className="card p-8 mb-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-6">🔧 وضع الصيانة</h3>
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                <div>
+                  <h4 className="font-medium text-gray-800">تفعيل وضع الصيانة</h4>
+                  <p className="text-sm text-gray-500">عند التفعيل، يظهر الموقع كـ "تحت الصيانة" للزوار</p>
+                </div>
+                <Toggle value={settings.maintenanceMode ?? false} onChange={(v) => setSettings(prev => ({ ...prev, maintenanceMode: v }))} />
               </div>
             </div>
 
@@ -762,7 +781,7 @@ const SiteSettings: React.FC = () => {
                               <button onClick={() => updateOrderStatus(activeSite.id, order.id, 'confirmed')} className="btn btn-sm" style={{ background: '#3b82f6', color: 'white' }}>
                                 ✅ تأكيد الطلب
                               </button>
-                              <button onClick={() => { if(confirm('هل تريد إلغاء هذا الطلب؟')) updateOrderStatus(activeSite.id, order.id, 'cancelled'); }} className="btn btn-danger btn-sm">
+                              <button onClick={() => { notify({ title: 'إلغاء الطلب', message: 'هل تريد إلغاء هذا الطلب؟', type: 'warning', showCancel: true, confirmLabel: 'إلغاء', onConfirm: () => updateOrderStatus(activeSite.id, order.id, 'cancelled') }); }} className="btn btn-danger btn-sm">
                                 ✕ إلغاء الطلب
                               </button>
                             </>
@@ -850,6 +869,95 @@ const SiteSettings: React.FC = () => {
                 <p className="desc">عندما يرسل زوار موقعك رسائل من نموذج التواصل ستظهر هنا</p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Customers */}
+        {activeTab === 'customers' && <CustomersPage siteId={activeSite.id} onBack={() => setActiveTab('orders')} />}
+
+        {/* Shipping */}
+        {activeTab === 'shipping' && (
+          <div className="animate-fade max-w-3xl">
+            <div className="card p-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center"><Truck size={24} color="white" /></div>
+                <h3 className="text-xl font-bold text-gray-800">إعدادات الشحن</h3>
+              </div>
+              {(settings.shippingMethods || [{ id: 'default', name: 'Standard', nameAr: 'شحن عادي', cost: 0, estimatedDays: '3-7', enabled: true }]).map((method, i) => (
+                <div key={method.id} className="p-4 bg-gray-50 rounded-2xl mb-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="form-group"><label className="form-label">الاسم (عربي)</label><input value={method.nameAr} onChange={e => { const m = [...(settings.shippingMethods || [])]; m[i] = { ...m[i], nameAr: e.target.value }; setSettings(p => ({ ...p, shippingMethods: m })); }} className="input" /></div>
+                    <div className="form-group"><label className="form-label">الاسم (إنجليزي)</label><input value={method.name} onChange={e => { const m = [...(settings.shippingMethods || [])]; m[i] = { ...m[i], name: e.target.value }; setSettings(p => ({ ...p, shippingMethods: m })); }} className="input" /></div>
+                    <div className="form-group"><label className="form-label">التكلفة (ج.م)</label><input type="number" value={method.cost} onChange={e => { const m = [...(settings.shippingMethods || [])]; m[i] = { ...m[i], cost: +e.target.value }; setSettings(p => ({ ...p, shippingMethods: m })); }} className="input" /></div>
+                    <div className="form-group"><label className="form-label">المدة التقريبية</label><input value={method.estimatedDays} onChange={e => { const m = [...(settings.shippingMethods || [])]; m[i] = { ...m[i], estimatedDays: e.target.value }; setSettings(p => ({ ...p, shippingMethods: m })); }} className="input" placeholder="3-7 أيام" /></div>
+                  </div>
+                  <div className="flex items-center justify-between mt-3">
+                    <div className="flex items-center gap-2"><span className="text-sm text-gray-600">مفعل</span><Toggle value={method.enabled} onChange={v => { const m = [...(settings.shippingMethods || [])]; m[i] = { ...m[i], enabled: v }; setSettings(p => ({ ...p, shippingMethods: m })); }} /></div>
+                    <button onClick={() => { setSettings(p => ({ ...p, shippingMethods: (p.shippingMethods || []).filter((_, idx) => idx !== i) })); }} className="btn btn-danger btn-sm"><Trash2 size={14} /> حذف</button>
+                  </div>
+                </div>
+              ))}
+              <button onClick={() => { setSettings(p => ({ ...p, shippingMethods: [...(p.shippingMethods || []), { id: uuidv4(), name: '', nameAr: '', cost: 0, estimatedDays: '', enabled: true }] })); }} className="btn btn-secondary mt-2"><Plus size={16} /> إضافة طريقة شحن</button>
+            </div>
+          </div>
+        )}
+
+        {/* Tax */}
+        {activeTab === 'tax' && (
+          <div className="animate-fade max-w-3xl">
+            <div className="card p-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center"><Receipt size={24} color="white" /></div>
+                <h3 className="text-xl font-bold text-gray-800">إعدادات الضرائب</h3>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl mb-4">
+                <div><h4 className="font-medium text-gray-800">تفعيل الضريبة</h4><p className="text-sm text-gray-500">إضافة ضريبة على الطلبات</p></div>
+                <Toggle value={settings.tax?.enabled ?? false} onChange={v => setSettings(p => ({ ...p, tax: { ...(p.tax || { enabled: false, rate: 0, name: 'VAT', nameAr: 'ضريبة' }), enabled: v } }))} />
+              </div>
+              {settings.tax?.enabled && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="form-group"><label className="form-label">اسم الضريبة (عربي)</label><input value={settings.tax?.nameAr || ''} onChange={e => setSettings(p => ({ ...p, tax: { ...p.tax!, nameAr: e.target.value } }))} className="input" /></div>
+                  <div className="form-group"><label className="form-label">نسبة الضريبة (%)</label><input type="number" value={settings.tax?.rate || 0} onChange={e => setSettings(p => ({ ...p, tax: { ...p.tax!, rate: +e.target.value } }))} className="input" /></div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* SEO */}
+        {activeTab === 'seo' && (
+          <div className="animate-fade max-w-3xl">
+            <div className="card p-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center"><FileText size={24} color="white" /></div>
+                <h3 className="text-xl font-bold text-gray-800">تحسين محركات البحث (SEO)</h3>
+              </div>
+              <div className="form-group mb-4">
+                <label className="form-label">العنوان الافتراضي (SEO Title)</label>
+                <input value={settings.seoTitle} onChange={e => setSettings(p => ({ ...p, seoTitle: e.target.value }))} className="input" />
+              </div>
+              <div className="form-group mb-4">
+                <label className="form-label">الوصف الافتراضي (Meta Description)</label>
+                <textarea value={settings.seoDescription} onChange={e => setSettings(p => ({ ...p, seoDescription: e.target.value }))} className="input" style={{ minHeight: '80px', resize: 'none' }} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Custom Code */}
+        {activeTab === 'code' && (
+          <div className="animate-fade max-w-3xl">
+            <div className="card p-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center"><Code2 size={24} color="white" /></div>
+                <h3 className="text-xl font-bold text-gray-800">كود مخصص (CSS/JS)</h3>
+              </div>
+              <div className="form-group mb-4">
+                <label className="form-label">كود CSS مخصص</label>
+                <textarea value={settings.customCss || ''} onChange={e => setSettings(p => ({ ...p, customCss: e.target.value }))} className="input font-mono text-sm" style={{ minHeight: '160px', resize: 'vertical' }} placeholder="/* أضف كود CSS مخصص هنا */" dir="ltr" />
+              </div>
+              <p className="text-xs text-gray-400">ملاحظة: هذا الكود سيتم إضافته إلى جميع صفحات موقعك.</p>
+            </div>
           </div>
         )}
       </div>

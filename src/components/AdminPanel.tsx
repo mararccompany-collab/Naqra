@@ -5,7 +5,7 @@ import { LogOut, Users, Globe, BarChart3, Trash2, Eye, Search, Activity, Wallet,
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const AdminPanel: React.FC = () => {
-  const { users, sites, deleteUser, deleteSite, getAllAnalytics, logout, setViewingSiteSlug, setCurrentPage, updateUserWallet, setUserPlan, addTransaction, getAllTransactions, confirmTransaction, deleteTransaction } = useApp();
+  const { users, sites, deleteUser, deleteSite, getAllAnalytics, logout, setViewingSiteSlug, setCurrentPage, updateUserWallet, setUserPlan, addTransaction, getAllTransactions, confirmTransaction, deleteTransaction, notify } = useApp();
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'sites' | 'analytics' | 'plans' | 'transactions'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const pendingTxCount = getAllTransactions().filter(t => !t.confirmed).length;
@@ -220,7 +220,7 @@ const AdminPanel: React.FC = () => {
                         <td>{new Date(user.createdAt).toLocaleDateString('ar-EG')}</td>
                         <td><span className="badge badge-info">{sites.filter(s => s.userId === user.id).length}</span></td>
                         <td>
-                          <button onClick={() => { if(confirm('حذف المستخدم ومواقعه؟')) deleteUser(user.id); }} className="btn btn-danger btn-sm">
+                          <button onClick={() => { notify({ title: 'تأكيد الحذف', message: 'حذف المستخدم وجميع مواقعه؟', type: 'warning', showCancel: true, confirmLabel: 'حذف', onConfirm: () => deleteUser(user.id) }); }} className="btn btn-danger btn-sm">
                             <Trash2 size={14} />
                           </button>
                         </td>
@@ -267,7 +267,7 @@ const AdminPanel: React.FC = () => {
                         <p className="text-sm text-gray-500 mb-4">المالك: {owner?.name || '—'}</p>
                         <div className="actions">
                           <button onClick={() => handleViewSite(site.siteSlug)} className="btn btn-secondary btn-sm"><Eye size={14} /> عرض</button>
-                          <button onClick={() => { if(confirm('حذف الموقع؟')) deleteSite(site.id); }} className="btn btn-danger btn-sm"><Trash2 size={14} /></button>
+                          <button onClick={() => { notify({ title: 'تأكيد الحذف', message: 'حذف هذا الموقع؟', type: 'warning', showCancel: true, confirmLabel: 'حذف', onConfirm: () => deleteSite(site.id) }); }} className="btn btn-danger btn-sm"><Trash2 size={14} /></button>
                         </div>
                       </div>
                     </div>
@@ -416,9 +416,7 @@ const AdminPanel: React.FC = () => {
                             value={user.plan || 'free'}
                             onChange={(e) => {
                               const plan = e.target.value as Plan;
-                              if (confirm(`تأكيد تغيير خطة ${user.name} إلى ${PLAN_LIMITS[plan].label}؟`)) {
-                                setUserPlan(user.id, plan);
-                              }
+                              notify({ title: 'تغيير الخطة', message: `تأكيد تغيير خطة ${user.name} إلى ${PLAN_LIMITS[plan].label}؟`, type: 'info', showCancel: true, confirmLabel: 'تأكيد', onConfirm: () => setUserPlan(user.id, plan) });
                             }}
                             className="input text-sm"
                             style={{ padding: '6px 12px', minWidth: '100px' }}
@@ -451,7 +449,7 @@ const AdminPanel: React.FC = () => {
                                   }
                                 }
                               } else {
-                                alert('رصيد المحفظة صفر');
+                                notify({ title: 'تنبيه', message: 'رصيد المحفظة صفر', type: 'warning' });
                               }
                             }} className="btn btn-danger btn-sm"><X size={14} /> خصم</button>
                           </div>
@@ -542,15 +540,10 @@ const AdminPanel: React.FC = () => {
                             {!tx.confirmed && (
                               <div className="flex gap-2">
                                 <button onClick={() => {
-                                  if (confirm('تأكيد هذه المعاملة؟')) {
-                                    confirmTransaction(tx.id);
-                                    alert('تم تأكيد المعاملة بنجاح!');
-                                  }
+                                  notify({ title: 'تأكيد المعاملة', message: 'هل أنت متأكد من تأكيد هذه المعاملة؟', type: 'info', showCancel: true, confirmLabel: 'تأكيد', onConfirm: () => { confirmTransaction(tx.id); notify({ title: 'تم التأكيد', message: 'تم تأكيد المعاملة بنجاح!', type: 'success' }); } });
                                 }} className="btn btn-success btn-sm"><Check size={14} /> تأكيد</button>
                                 <button onClick={() => {
-                                  if (confirm('حذف هذه المعاملة؟')) {
-                                    deleteTransaction(tx.id);
-                                  }
+                                  notify({ title: 'رفض المعاملة', message: 'هل أنت متأكد من حذف هذه المعاملة؟', type: 'warning', showCancel: true, confirmLabel: 'حذف', onConfirm: () => deleteTransaction(tx.id) });
                                 }} className="btn btn-danger btn-sm"><Trash2 size={14} /> رفض</button>
                               </div>
                             )}

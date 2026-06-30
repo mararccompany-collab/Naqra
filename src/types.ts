@@ -14,6 +14,8 @@ export interface User {
   lastLogin?: string;
   plan: Plan;
   wallet: number;
+  notifications?: AppNotification[];
+  darkMode?: boolean;
 }
 
 export interface SiteTemplate {
@@ -39,6 +41,16 @@ export interface TemplateSection {
   enabled: boolean;
 }
 
+export interface Review {
+  id: string;
+  userId: string;
+  customerName: string;
+  customerEmail: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -53,6 +65,7 @@ export interface Product {
   quantity?: number;
   sku?: string;
   featured?: boolean;
+  reviews?: Review[];
 }
 
 export interface DiscountCode {
@@ -72,6 +85,17 @@ export interface CartItem {
   quantity: number;
 }
 
+export interface WishlistItem {
+  productId: string;
+  addedAt: string;
+}
+
+export interface OrderStatusLog {
+  status: Order['status'];
+  timestamp: string;
+  note?: string;
+}
+
 export interface Order {
   id: string;
   siteId: string;
@@ -86,6 +110,10 @@ export interface Order {
   total: number;
   status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
   createdAt: string;
+  statusLog?: OrderStatusLog[];
+  shippingMethod?: string;
+  shippingCost?: number;
+  notes?: string;
 }
 
 export interface SiteVisit {
@@ -103,6 +131,8 @@ export interface SiteSettings {
   enableDarkMode: boolean;
   enableCart: boolean;
   enableOrders: boolean;
+  enableReviews?: boolean;
+  enableWishlist?: boolean;
   currency: string;
   seoTitle: string;
   seoDescription: string;
@@ -128,6 +158,21 @@ export interface SiteSettings {
   announcements?: string;
   customCss?: string;
   verified?: boolean;
+  maintenanceMode?: boolean;
+  shippingMethods?: ShippingMethod[];
+  tax?: TaxSettings;
+  seoPages?: SeoPage[];
+}
+
+export interface CustomerInfo {
+  email: string;
+  name: string;
+  phone: string;
+  address: string;
+  totalOrders: number;
+  totalSpent: number;
+  lastOrderDate?: string;
+  notes?: string;
 }
 
 export interface ClientSite {
@@ -153,6 +198,7 @@ export interface ClientSite {
   orders: Order[];
   contactMessages: ContactMessage[];
   categories: string[];
+  wishlist?: WishlistItem[];
 }
 
 export interface DailyAnalytics {
@@ -188,4 +234,39 @@ export interface Transaction {
   confirmed: boolean;
 }
 
-export type Page = 'landing' | 'login' | 'register' | 'dashboard' | 'create-site' | 'edit-site' | 'site-settings' | 'analytics' | 'admin' | 'view-site' | 'admin-login' | 'products' | 'orders' | 'discounts' | 'profile';
+export interface AppNotification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  read: boolean;
+  createdAt: string;
+  link?: string;
+}
+
+export interface ShippingMethod {
+  id: string;
+  name: string;
+  nameAr: string;
+  cost: number;
+  estimatedDays: string;
+  enabled: boolean;
+}
+
+export interface TaxSettings {
+  enabled: boolean;
+  rate: number;
+  name: string;
+  nameAr: string;
+}
+
+export interface SeoPage {
+  pageId: string;
+  title: string;
+  description: string;
+  keywords: string;
+  ogImage?: string;
+}
+
+export type Page = 'landing' | 'login' | 'register' | 'dashboard' | 'create-site' | 'edit-site' | 'site-settings' | 'analytics' | 'admin' | 'view-site' | 'admin-login' | 'products' | 'orders' | 'discounts' | 'profile' | 'customers' | 'wishlist';

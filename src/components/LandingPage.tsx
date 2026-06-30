@@ -3,7 +3,7 @@ import { useApp } from '../store';
 import { ArrowLeft, Globe, Zap, Shield, Palette, BarChart3, Users, Check, Star, ShoppingCart, X, CreditCard, Smartphone, Wallet, Building } from 'lucide-react';
 
 const LandingPage: React.FC = () => {
-  const { setCurrentPage, currentUser, updateUserWallet, setUserPlan, addTransaction } = useApp();
+  const { setCurrentPage, currentUser, updateUserWallet, setUserPlan, addTransaction, notify } = useApp();
   const [showSubModal, setShowSubModal] = useState<string | null>(null);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [depositAmount, setDepositAmount] = useState('');
@@ -313,14 +313,15 @@ const LandingPage: React.FC = () => {
                 onClick={() => {
                   const price = showSubModal === 'احترافي' ? 49 : 99;
                   if ((currentUser.wallet || 0) < price) {
-                    alert('رصيد المحفظة غير كافٍ. قم بشحن المحفظة أولاً.');
+                    setShowSubModal(null);
+                    notify({ title: 'رصيد غير كافٍ', message: 'رصيد محفظتك لا يكفي لترقية الباقة. قم بشحن المحفظة أولاً.', type: 'warning' });
                     return;
                   }
                   updateUserWallet(currentUser.id, -price);
                   setUserPlan(currentUser.id, showSubModal === 'احترافي' ? 'professional' : 'business');
                   addTransaction(currentUser.id, 'subscription', -price, `اشتراك باقة ${showSubModal}`);
                   setShowSubModal(null);
-                  alert(`تم تفعيل باقة ${showSubModal} بنجاح!`);
+                  notify({ title: 'تم التفعيل بنجاح! 🎉', message: `تم تفعيل باقة ${showSubModal} على حسابك.`, type: 'success' });
                 }}
                 className="w-full py-4 px-6 bg-gradient-to-l from-indigo-500 to-purple-500 text-white rounded-2xl font-bold text-lg hover:opacity-90 transition-opacity cursor-pointer border-none flex items-center justify-center gap-3 mb-3"
               >
@@ -343,7 +344,7 @@ const LandingPage: React.FC = () => {
                   <button onClick={() => {
                     addTransaction(currentUser?.id || '', 'subscription', showSubModal === 'احترافي' ? 49 : 99, `طلب ترقية باقة ${showSubModal} - التحويل عبر إنستا باي`);
                     setShowSubModal(null);
-                    alert('تم إرسال طلب الترقية. يرجى تحويل المبلغ عبر إنستا باي على الرقم 01229938115 وسيتم تفعيل الباقة بعد التأكيد من الإدارة.');
+                    notify({ title: 'تم إرسال الطلب', message: 'يرجى تحويل المبلغ عبر إنستا باي على الرقم 01229938115 وسيتم تفعيل الباقة بعد التأكيد من الإدارة.', type: 'info' });
                   }}
                     className="w-full py-4 px-6 bg-gradient-to-l from-emerald-500 to-teal-500 text-white rounded-2xl font-bold text-lg hover:opacity-90 transition-opacity cursor-pointer border-none flex items-center justify-center gap-3">
                     <Smartphone size={20} />
@@ -352,7 +353,7 @@ const LandingPage: React.FC = () => {
                   <button onClick={() => {
                     addTransaction(currentUser?.id || '', 'subscription', showSubModal === 'احترافي' ? 49 : 99, `طلب ترقية باقة ${showSubModal} - تحويل بنكي`);
                     setShowSubModal(null);
-                    alert('تم إرسال طلب الترقية. يرجى تحويل المبلغ إلى الحساب البنكي: البنك الأهلي المصري - حساب رقم 123456789 وسيتم تفعيل الباقة بعد التأكيد من الإدارة.');
+                    notify({ title: 'تم إرسال الطلب', message: 'يرجى تحويل المبلغ إلى الحساب البنكي: البنك الأهلي المصري - حساب رقم 123456789 وسيتم تفعيل الباقة بعد التأكيد من الإدارة.', type: 'info' });
                   }}
                     className="w-full py-4 px-6 bg-gradient-to-l from-orange-500 to-red-500 text-white rounded-2xl font-bold text-lg hover:opacity-90 transition-opacity cursor-pointer border-none flex items-center justify-center gap-3">
                     <Building size={20} />
@@ -390,12 +391,12 @@ const LandingPage: React.FC = () => {
             <p className="text-sm text-gray-500 mb-4 text-center">حول المبلغ على إنستا باي: <strong dir="ltr">01229938115</strong> ثم أرسل إيصال الدفع للإدارة</p>
             <button onClick={() => {
               const amount = parseInt(depositAmount);
-              if (!amount || amount <= 0) { alert('أدخل مبلغ صحيح'); return; }
-              if (!currentUser) { alert('سجل دخول أولاً'); return; }
+              if (!amount || amount <= 0) { notify({ title: 'خطأ', message: 'أدخل مبلغ صحيح', type: 'error' }); return; }
+              if (!currentUser) { notify({ title: 'خطأ', message: 'سجل دخول أولاً', type: 'error' }); return; }
               addTransaction(currentUser.id, 'deposit', amount, `شحن محفظة بمبلغ ${amount} ج.م`);
               setShowWalletModal(false);
               setDepositAmount('');
-              alert('تم إرسال طلب الشحن. سيتم إضافة الرصيد إلى محفظتك بعد تأكيد الدفع من الإدارة.');
+              notify({ title: 'تم إرسال طلب الشحن', message: 'سيتم إضافة الرصيد إلى محفظتك بعد تأكيد الدفع من الإدارة.', type: 'success' });
             }} className="w-full py-4 px-6 bg-gradient-to-l from-emerald-500 to-teal-500 text-white rounded-2xl font-bold text-lg hover:opacity-90 transition-opacity cursor-pointer border-none">
               تأكيد طلب الشحن
             </button>

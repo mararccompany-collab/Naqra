@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../store';
 import { PLAN_LIMITS } from '../types';
-import { Plus, Globe, Edit3, Trash2, Settings, BarChart3, LogOut, ExternalLink, Copy, Check, CopyPlus, User, Wallet, ShieldCheck, Smartphone, CreditCard, Bell, MessageCircle, Share2, Zap, Headphones } from 'lucide-react';
+import { Plus, Globe, Edit3, Trash2, Settings, BarChart3, LogOut, ExternalLink, Copy, Check, CopyPlus, User, Wallet, ShieldCheck, Smartphone, CreditCard, Bell, MessageCircle, Share2, Zap, Headphones, Moon, Sun, Users, DollarSign, ShoppingBag } from 'lucide-react';
+import DashboardUpgradeModal from './DashboardUpgradeModal';
+import NotificationCenter from './NotificationCenter';
 
 const Dashboard: React.FC = () => {
-  const { currentUser, getUserSites, setCurrentPage, setEditingSite, setViewingSiteSlug, deleteSite, duplicateSite, logout } = useApp();
+  const { currentUser, getUserSites, setCurrentPage, setEditingSite, setViewingSiteSlug, deleteSite, duplicateSite, logout, notify, toggleDarkMode } = useApp();
   const userSites = getUserSites();
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   
   const planInfo = PLAN_LIMITS[currentUser?.plan || 'free'];
   const planLimit = planInfo.maxSites === Infinity ? 'غير محدود' : `${planInfo.maxSites}`;
@@ -14,7 +17,6 @@ const Dashboard: React.FC = () => {
     const msg = encodeURIComponent('مرحباً، أريد شحن محفظتي في Naqra. (الرقم: ' + (currentUser?.email || '') + ')');
     window.open(`https://wa.me/201229938115?text=${msg}`, '_blank');
   };
-  const goToUpgrade = () => { setCurrentPage('landing'); setTimeout(() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' }), 300); };
 
   const { getSiteUrl } = useApp();
   const copyLink = (slug: string, id: string) => {
@@ -43,6 +45,10 @@ const Dashboard: React.FC = () => {
                 <div className="text-gray-400 text-xs">{currentUser?.email}</div>
               </div>
             </div>
+            <NotificationCenter />
+            <button onClick={toggleDarkMode} className="btn btn-ghost btn-sm" title="الوضع الليلي">
+              {currentUser?.darkMode ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
             <button onClick={() => setCurrentPage('profile')} className="btn btn-ghost btn-sm" title="الحساب الشخصي">
               <User size={16} />
             </button>
@@ -95,6 +101,24 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* Enhanced Stats */}
+        <div className="grid grid-cols-4 gap-4 mb-8">
+          {[
+            { icon: <Globe size={20} />, label: 'المواقع', value: `${userSites.length}`, color: '#6366f1', bg: '#eef2ff' },
+            { icon: <ShoppingBag size={20} />, label: 'الطلبات', value: `${userSites.reduce((a, s) => a + (s.orders?.length || 0), 0)}`, color: '#f59e0b', bg: '#fffbeb' },
+            { icon: <DollarSign size={20} />, label: 'الإيرادات', value: `${userSites.reduce((a, s) => a + (s.orders?.reduce((t, o) => t + o.total, 0) || 0), 0)} ج.م`, color: '#10b981', bg: '#ecfdf5' },
+            { icon: <Users size={20} />, label: 'العملاء', value: `${new Set(userSites.flatMap(s => (s.orders || []).map(o => o.customerEmail))).size}`, color: '#ec4899', bg: '#fdf2f8' },
+          ].map((stat, i) => (
+            <div key={i} className="card p-5 text-center hover:shadow-lg transition-all">
+              <div className="w-12 h-12 mx-auto mb-2 rounded-2xl flex items-center justify-center" style={{ background: stat.bg, color: stat.color }}>
+                {stat.icon}
+              </div>
+              <h4 className="text-2xl font-bold text-gray-800">{stat.value}</h4>
+              <p className="text-xs text-gray-500">{stat.label}</p>
+            </div>
+          ))}
+        </div>
+
         {/* Quick Actions */}
         <div className="grid grid-cols-4 gap-4 mb-10">
           <div onClick={() => setCurrentPage('create-site')} className="card p-5 text-center cursor-pointer hover:shadow-lg transition-all border-2 border-transparent hover:border-indigo-200">
@@ -111,7 +135,7 @@ const Dashboard: React.FC = () => {
             <h4 className="font-semibold text-gray-800 text-sm">شحن المحفظة</h4>
             <p className="text-xs text-gray-500">أضف رصيداً عبر واتساب</p>
           </div>
-          <div onClick={goToUpgrade} className="card p-5 text-center cursor-pointer hover:shadow-lg transition-all border-2 border-transparent hover:border-amber-200">
+          <div onClick={() => setShowUpgradeModal(true)} className="card p-5 text-center cursor-pointer hover:shadow-lg transition-all border-2 border-transparent hover:border-amber-200">
             <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
               <ShieldCheck size={24} className="text-white" />
             </div>
@@ -205,7 +229,7 @@ const Dashboard: React.FC = () => {
                       <button onClick={() => { const copy = duplicateSite(site.id); if (copy) { setEditingSite(copy); setCurrentPage('edit-site'); } }} className="btn btn-ghost btn-sm" title="نسخ الموقع">
                         <CopyPlus size={14} />
                       </button>
-                      <button onClick={() => { if(confirm('حذف الموقع وجميع بياناته؟')) deleteSite(site.id); }} className="btn btn-danger btn-sm">
+                      <button onClick={() => { notify({ title: 'تأكيد الحذف', message: 'هل أنت متأكد من حذف الموقع وجميع بياناته؟', type: 'warning', showCancel: true, confirmLabel: 'حذف', onConfirm: () => deleteSite(site.id) }); }} className="btn btn-danger btn-sm">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -225,6 +249,7 @@ const Dashboard: React.FC = () => {
           </div>
         )}
       </div>
+      {showUpgradeModal && <DashboardUpgradeModal onClose={() => setShowUpgradeModal(false)} />}
     </div>
   );
 };
